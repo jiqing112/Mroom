@@ -133,8 +133,8 @@ Mrome 是一个**单二进制**的私人音乐服务：把歌丢进目录（或�
 ### Docker（推荐）
 
 ```bash
-git clone https://github.com/jiqing112/mroom.git
-cd mroom
+git clone https://github.com/jiqing112/Mroom.git
+cd Mroom
 docker compose up -d
 ```
 
