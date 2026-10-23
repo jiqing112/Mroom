@@ -1,0 +1,17 @@
+# Keep build contexts small and reproducible.
+.git
+.gitignore
+.venv
+.tools
+.shots
+shots
+data
+music
+web/node_modules
+web/dist
+mrome
+mrome.exe
+*.log
+Dockerfile
+docker-compose.yml
+README.md

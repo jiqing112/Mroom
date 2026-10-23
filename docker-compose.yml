@@ -1,0 +1,26 @@
+services:
+  mrome:
+    build: .
+    image: mrome:latest
+    container_name: mrome
+    ports:
+      - "4533:4533"
+    environment:
+      MROME_ADMIN_USER: ${MROME_ADMIN_USER:-admin}
+      MROME_ADMIN_PASSWORD: ${MROME_ADMIN_PASSWORD:-admin}
+      MROME_MAX_UPLOAD_MB: ${MROME_MAX_UPLOAD_MB:-512}
+      MROME_SCAN_ON_START: "true"
+    volumes:
+      # Your existing music collection (read/write: uploads land here too)
+      - ./music:/music
+      # SQLite database, extracted covers, upload staging, trash
+      - ./data:/data
+    restart: unless-stopped
+    healthcheck:
+      # /api/meta is intentionally unauthenticated, so the probe keeps working
+      # after the default admin password is changed.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:4533/api/meta"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

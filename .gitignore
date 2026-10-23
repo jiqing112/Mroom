@@ -1,0 +1,35 @@
+# build output
+/mrome
+/mrome.exe
+/mrome.linux
+web/dist/
+web/node_modules/
+
+# runtime data
+/data/
+!data/.gitkeep
+/music/
+*.db
+*.db-shm
+*.db-wal
+
+# screenshots: only the ones referenced by README are tracked
+/shots/*
+!/shots/gh-*.jpg
+
+# python helper venv (demo library generator)
+/.venv/
+__pycache__/
+*.pyc
+
+# tooling
+/.tools/
+/.workbuddy-ai/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+
+# local environment
+.env

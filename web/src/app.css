@@ -1,0 +1,777 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Inter Tight";
+  src: url("/fonts/InterTight-300-normal.woff2") format("woff2");
+  font-weight: 300 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Instrument Serif";
+  src: url("/fonts/InstrumentSerif-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Instrument Serif";
+  src: url("/fonts/InstrumentSerif-400-italic.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+:root {
+  --font-sans: "Inter Tight", "PingFang SC", "HarmonyOS Sans SC", "Hiragino Sans GB",
+    "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  --font-serif: "Instrument Serif", "Songti SC", "Noto Serif SC", Georgia, serif;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --r-xl: 32px;
+  --r-lg: 24px;
+  --r-md: 16px;
+  --r-sm: 10px;
+  /* Shared horizontal gutter so the sticky header and page content line up. */
+  --page-gutter: clamp(18px, 3.2vw, 44px);
+  --accent: #8b7cff;
+  --accent-2: #4fd1c5;
+  --accent-rgb: 139, 124, 255;
+  --accent-2-rgb: 79, 209, 197;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #07080b;
+  --bg-deep: #040507;
+  --text: #f5f5f7;
+  --text-2: rgba(245, 245, 247, 0.7);
+  --text-3: rgba(245, 245, 247, 0.44);
+  --line: rgba(255, 255, 255, 0.085);
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --glass: rgba(255, 255, 255, 0.045);
+  --glass-2: rgba(255, 255, 255, 0.075);
+  --glass-3: rgba(14, 15, 21, 0.82);
+  --bar-bg: rgba(10, 11, 16, 0.92);
+  --inset: rgba(255, 255, 255, 0.07);
+  --shadow: 0 40px 90px -40px rgba(0, 0, 0, 0.9);
+  --shadow-soft: 0 20px 50px -30px rgba(0, 0, 0, 0.8);
+  --aurora-opacity: 0.44;
+  --grain-opacity: 0.045;
+  --vinyl: #0b0b0e;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f1eee8;
+  --bg-deep: #e7e2d8;
+  --text: #14151a;
+  --text-2: rgba(20, 21, 26, 0.8);
+  --text-3: rgba(20, 21, 26, 0.64);
+  --line: rgba(20, 21, 26, 0.1);
+  --line-strong: rgba(20, 21, 26, 0.2);
+  --glass: rgba(255, 255, 255, 0.5);
+  --glass-2: rgba(255, 255, 255, 0.68);
+  --glass-3: rgba(255, 255, 255, 0.93);
+  --bar-bg: rgba(252, 251, 248, 0.95);
+  --inset: rgba(255, 255, 255, 0.9);
+  --shadow: 0 40px 90px -45px rgba(45, 38, 25, 0.4);
+  --shadow-soft: 0 18px 44px -28px rgba(45, 38, 25, 0.32);
+  --aurora-opacity: 0.24;
+  --grain-opacity: 0.035;
+  --vinyl: #16161a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+}
+
+::selection {
+  background: rgba(var(--accent-rgb), 0.32);
+}
+
+/* ---------------------------------------------------------------- scrollbar */
+
+.scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+.scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 99px;
+}
+.scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--text-3);
+}
+
+/* ---------------------------------------------------------------- glass */
+
+.glass {
+  background: linear-gradient(165deg, var(--glass-2), var(--glass));
+  border: 1px solid var(--line);
+  backdrop-filter: blur(30px) saturate(150%);
+  box-shadow: inset 0 1px 0 var(--inset), var(--shadow-soft);
+}
+
+.glass-deep {
+  background: var(--glass-3);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(40px) saturate(160%);
+  box-shadow: inset 0 1px 0 var(--inset), var(--shadow);
+}
+
+.hairline {
+  height: 1px;
+  background: var(--line);
+}
+
+/* ---------------------------------------------------------------- type */
+
+.eyebrow {
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.display {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.title-tight {
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+}
+
+.muted {
+  color: var(--text-2);
+}
+.faint {
+  color: var(--text-3);
+}
+
+/* ---------------------------------------------------------------- controls */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--glass);
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition: all 0.3s var(--ease);
+  white-space: nowrap;
+}
+.btn:hover {
+  background: var(--glass-2);
+  border-color: var(--line-strong);
+  transform: translateY(-1px);
+}
+.btn:active {
+  transform: translateY(0) scale(0.985);
+}
+.btn-primary {
+  background: var(--text);
+  color: var(--bg);
+  border-color: transparent;
+  box-shadow: 0 12px 30px -14px rgba(0, 0, 0, 0.6);
+}
+.btn-primary:hover {
+  background: var(--text);
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+.btn-accent {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #0a0a0f;
+  border-color: transparent;
+  font-weight: 600;
+  box-shadow: 0 16px 40px -18px rgba(var(--accent-rgb), 0.8);
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  color: var(--text-2);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.25s var(--ease);
+}
+.icon-btn:hover {
+  color: var(--text);
+  background: var(--glass-2);
+  border-color: var(--line);
+}
+.icon-btn.active {
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.14);
+  border-color: rgba(var(--accent-rgb), 0.3);
+}
+.icon-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 13px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s var(--ease);
+  white-space: nowrap;
+}
+.pill:hover {
+  color: var(--text);
+  border-color: var(--line-strong);
+  background: var(--glass);
+}
+.pill.active {
+  color: var(--text);
+  background: var(--glass-2);
+  border-color: var(--line-strong);
+}
+
+:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.7);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* ---------------------------------------------------------------- slider */
+
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 18px;
+  background: transparent;
+  cursor: pointer;
+  --p: 0%;
+}
+.slider::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 99px;
+  background: linear-gradient(
+    to right,
+    var(--text) 0%,
+    var(--text) var(--p),
+    var(--line-strong) var(--p),
+    var(--line-strong) 100%
+  );
+  transition: height 0.2s var(--ease);
+}
+.slider::-moz-range-track {
+  height: 3px;
+  border-radius: 99px;
+  background: var(--line-strong);
+}
+.slider::-moz-range-progress {
+  height: 3px;
+  border-radius: 99px;
+  background: var(--text);
+}
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 10px;
+  margin-top: -3.5px;
+  border-radius: 50%;
+  background: var(--text);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  transition: transform 0.2s var(--ease);
+}
+.slider:hover::-webkit-slider-thumb {
+  transform: scale(1.25);
+}
+.slider::-moz-range-thumb {
+  width: 11px;
+  height: 11px;
+  border: none;
+  border-radius: 50%;
+  background: var(--text);
+  opacity: 0;
+}
+.slider:hover::-webkit-slider-thumb,
+.slider:focus-visible::-webkit-slider-thumb {
+  opacity: 1;
+}
+.slider:hover::-webkit-slider-runnable-track {
+  height: 4px;
+}
+.slider:hover::-moz-range-thumb {
+  opacity: 1;
+}
+
+/* ---------------------------------------------------------------- vinyl */
+
+.vinyl {
+  position: relative;
+  border-radius: 50%;
+  aspect-ratio: 1;
+  isolation: isolate;
+}
+.vinyl .disc {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.09) 0%, transparent 42%),
+    repeating-radial-gradient(circle at 50% 50%, #101014 0 2px, #08080b 2px 4px),
+    #08080b;
+  box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.9), inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+  animation: spin 26s linear infinite;
+  animation-play-state: paused;
+}
+.vinyl.playing .disc {
+  animation-play-state: running;
+}
+.vinyl .label {
+  position: absolute;
+  inset: 26%;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.16), inset 0 0 24px rgba(0, 0, 0, 0.32),
+    0 18px 38px -22px rgba(0, 0, 0, 0.85);
+}
+.vinyl .label img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* Show the whole album cover instead of zooming a circle out of it. */
+.vinyl .label .cover {
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  transform: none;
+}
+.vinyl .hole {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6.5%;
+  height: 6.5%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+}
+.vinyl .sheen {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 210deg,
+    transparent 0deg,
+    rgba(255, 255, 255, 0.11) 34deg,
+    transparent 78deg,
+    transparent 180deg,
+    rgba(255, 255, 255, 0.06) 216deg,
+    transparent 260deg
+  );
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------------------------------------------------------------- motion */
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.rise {
+  animation: rise 0.65s var(--ease) both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.85;
+  }
+}
+
+@keyframes bars {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.playing-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 13px;
+}
+.playing-bars i {
+  display: block;
+  width: 2px;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+  transform-origin: bottom;
+  animation: bars 0.9s var(--ease-soft) infinite;
+}
+.playing-bars i:nth-child(2) {
+  animation-delay: 0.18s;
+}
+.playing-bars i:nth-child(3) {
+  animation-delay: 0.36s;
+}
+.playing-bars.paused i {
+  animation-play-state: paused;
+  opacity: 0.5;
+}
+
+/* ---------------------------------------------------------------- song rows */
+
+.song-row {
+  display: grid;
+  grid-template-columns: 34px 44px minmax(0, 2.4fr) minmax(0, 1.4fr) 62px 84px;
+  align-items: center;
+  gap: 14px;
+  padding: 7px 12px;
+  border-radius: 12px;
+  cursor: default;
+  transition: background 0.22s var(--ease);
+  border: 1px solid transparent;
+}
+.song-row:hover {
+  background: var(--glass);
+  border-color: var(--line);
+}
+.song-row.current {
+  background: rgba(var(--accent-rgb), 0.09);
+  border-color: rgba(var(--accent-rgb), 0.22);
+}
+.song-row .idx {
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-3);
+  text-align: center;
+}
+.song-row .row-actions {
+  opacity: 0;
+  transition: opacity 0.2s var(--ease);
+}
+.song-row:hover .row-actions,
+.song-row.current .row-actions,
+.song-row.menu-open .row-actions {
+  opacity: 1;
+}
+
+/* Touch devices have no hover state; keep row actions reachable. */
+@media (hover: none) {
+  .song-row .row-actions {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 860px) {
+  .song-row {
+    grid-template-columns: 26px 40px minmax(0, 1fr) 80px;
+    gap: 10px;
+    padding: 6px 8px;
+  }
+  .song-row .col-album,
+  .song-row .col-dur {
+    display: none;
+  }
+}
+
+/* ---------------------------------------------------------------- misc */
+
+.cover-shadow {
+  box-shadow: 0 30px 60px -28px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.grain::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+  opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ---------------------------------------------------------------- smooth mode */
+
+/* [data-perf="smooth"] is set on <html> by lib/perf.svelte.js. It drops every
+   effect that costs the compositor work on each frame: backdrop blur, full
+   screen blur filters, blend modes and looping animation. Surfaces fall back to
+   opaque fills so text keeps its contrast without a blur pass. */
+
+[data-perf="smooth"] {
+  --glass: rgba(23, 24, 32, 0.88);
+  --glass-2: rgba(29, 30, 40, 0.94);
+  --glass-3: #101119;
+  --bar-bg: #0b0c11;
+  --grain-opacity: 0;
+}
+
+[data-theme="light"][data-perf="smooth"] {
+  --glass: rgba(255, 255, 255, 0.74);
+  --glass-2: rgba(255, 255, 255, 0.88);
+  --glass-3: #f8f6f2;
+  --bar-bg: #faf9f6;
+}
+
+[data-perf="smooth"] *,
+[data-perf="smooth"] *::before,
+[data-perf="smooth"] *::after {
+  backdrop-filter: none !important;
+  animation: none !important;
+  transition-duration: 0.12s !important;
+  transition-delay: 0s !important;
+}
+
+/* Motion budget: keep only compositor-only (transform / opacity) animation on a
+   handful of tiny layers. Everything that forces repaints — aurora, blurred
+   halos, grain, sheen, entrance sweeps — is dropped above.
+   1. the loader spinner (signals "still working")
+   2. the vinyl disc, 26s per turn, one promoted layer
+   3. the 3-bar equalizer, scaleY only */
+[data-perf="smooth"] .spin {
+  animation: spin 0.9s linear infinite !important;
+}
+[data-perf="smooth"] .vinyl .disc {
+  animation: spin 26s linear infinite !important;
+  animation-play-state: paused !important;
+}
+[data-perf="smooth"] .vinyl.playing .disc {
+  animation-play-state: running !important;
+}
+/* The record must visibly spin while playing in every rendering mode. The
+   shorthand also overrides the global reduced-motion duration so the vinyl
+   behaves the same in full and smooth mode. */
+.vinyl.playing .disc {
+  animation: spin 26s linear infinite !important;
+}
+[data-perf="smooth"] .playing-bars i {
+  animation: bars 0.9s var(--ease-soft) infinite !important;
+}
+[data-perf="smooth"] .playing-bars.paused i {
+  animation-play-state: paused !important;
+}
+
+/* Backdrop blur is stripped in smooth mode, so the scrolled header needs an
+   opaque surface instead of the translucent one it uses in full mode. */
+[data-perf="smooth"] .topbar.scrolled {
+  background: var(--bar-bg) !important;
+}
+
+[data-perf="smooth"] .grain::after {
+  display: none;
+}
+
+[data-perf="smooth"] .vinyl .sheen {
+  display: none;
+}
+
+/* static colour wash replacing the animated aurora canvas */
+[data-perf="smooth"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(58% 46% at 16% 10%, rgba(var(--accent-rgb), 0.13), transparent 68%),
+    radial-gradient(52% 42% at 84% 80%, rgba(var(--accent-2-rgb), 0.09), transparent 70%);
+}
+
+
+/* ---------------------------------------------------------------- page chrome */
+
+.page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.page-title {
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+  font-weight: 500;
+  letter-spacing: -0.045em;
+  line-height: 1.1;
+  margin: 8px 0 0;
+}
+.page-sub {
+  font-size: 12.5px;
+  color: var(--text-3);
+  margin-top: 9px;
+}
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.grid-albums {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(166px, 1fr));
+  gap: 24px 18px;
+}
+.grid-artists {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 26px 18px;
+}
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--text-3);
+  text-decoration: none;
+  transition: color 0.2s var(--ease);
+  margin-bottom: 18px;
+}
+.back:hover {
+  color: var(--text);
+}
+
+@media (max-width: 860px) {
+  .grid-albums {
+    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+    gap: 18px 12px;
+  }
+  .grid-artists {
+    grid-template-columns: repeat(auto-fill, minmax(116px, 1fr));
+    gap: 20px 12px;
+  }
+}
+
+/* global helpers used across components (class is forwarded into children) */
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+
+/* ---------------------------------------------------------------- static mode */
+
+/* data-static is applied on top of the smooth palette and surface rules.
+   Freeze the two decorative animations that smooth mode deliberately keeps
+   (record + equalizer). The loader spinner stays so loading still reads. */
+[data-static='true'] .vinyl .disc,
+[data-static='true'] .vinyl.playing .disc,
+[data-static='true'] .playing-bars i,
+[data-static='true'] .playing-bars.paused i {
+  animation: none !important;
+}
+
+
+/* Accent-coloured text is hard to read on the light, album-tinted wash. */
+[data-theme='light'] .song-row.current .title {
+  color: var(--text);
+}

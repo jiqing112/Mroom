@@ -1,0 +1,32 @@
+# Mrome 运行配置
+#
+# 优先级：真实环境变量 > .env > config.yaml > 内置默认值
+# 只需要写出想覆盖的项；文件位置可用 MROME_CONFIG 指定。
+# 本项目只解析顶层 “键: 值”，不支持嵌套结构。
+
+# 监听地址与前端产物
+addr: ":4533"
+web_dir: "./web/dist"
+
+# 音乐库与数据目录
+data_dir: "./data"
+music_dir: "./data/music"
+# db: "./data/mrome.db"            # 默认 <data_dir>/mrome.db
+# covers_dir: "./data/covers"      # 默认 <data_dir>/covers
+# uploads_dir: "./data/uploads"    # 默认 <data_dir>/uploads
+
+# 首次启动时创建管理员（仅当库中还没有管理员）。
+# 两项都留空 = 默认开启免登录访客模式：打开网页直接进入首页，
+# 可浏览、搜索、播放、收藏、管理歌单；上传、扫描、用户管理仍需管理员登录。
+# 也可以在「设置 → 用户 → 免登录访问」里一键切换，那里的选择写进数据库并优先于本文件。
+admin_user: ""
+admin_password: ""
+
+# 上传单文件上限（MB，最小 8）
+max_upload_mb: 512
+
+# 启动时扫描音乐目录
+scan_on_start: true
+
+# 定时重扫间隔（小时）。0 = 关闭；把新文件丢进音乐目录后无需手动点扫描。
+scan_interval_hours: 6
