@@ -1,0 +1,195 @@
+name: Release
+
+# 两种触发方式：
+#   1. 推送 v* 标签（如 v1.0.0）
+#   2. 在 Actions 页面手动运行并填写版本号（会自动创建同名 tag）
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号，例如 v1.0.0（会作为 tag 名创建）'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  verify:
+    name: 静态检查与测试
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go test
+        run: go test ./...
+
+  # 前端只构建一次，其余平台共用同一份 web/dist
+  web:
+    name: 构建前端
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: 安装依赖
+        working-directory: web
+        run: npm ci
+
+      - name: 构建
+        working-directory: web
+        run: npm run build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+          retention-days: 1
+
+  build:
+    name: 编译 ${{ matrix.goos }}-${{ matrix.goarch }}
+    needs: [verify, web]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { goos: linux,   goarch: amd64, ext: '' }
+          - { goos: linux,   goarch: arm64, ext: '' }
+          - { goos: windows, goarch: amd64, ext: '.exe' }
+          - { goos: darwin,  goarch: amd64, ext: '' }
+          - { goos: darwin,  goarch: arm64, ext: '' }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+
+      - name: 编译
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: '0'
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          go build -trimpath -ldflags "-s -w" -o "out/mrome${{ matrix.ext }}" ./cmd/mrome
+          ls -lh out/
+
+      - name: 打包
+        env:
+          VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+          EXT: ${{ matrix.ext }}
+          GOOS_NAME: ${{ matrix.goos }}
+          GOARCH_NAME: ${{ matrix.goarch }}
+        run: |
+          set -euo pipefail
+          NAME="mrome-${VERSION}-${GOOS_NAME}-${GOARCH_NAME}"
+          mkdir -p "pkg/${NAME}/web"
+          cp "out/mrome${EXT}" "pkg/${NAME}/"
+          cp -r web/dist/. "pkg/${NAME}/web/dist/"
+          cp config.yaml .env.example README.md "pkg/${NAME}/"
+          cd pkg
+          if [ "${GOOS_NAME}" = "windows" ]; then
+            zip -qr "../out/${NAME}.zip" "${NAME}"
+          else
+            tar czf "../out/${NAME}.tar.gz" "${NAME}"
+          fi
+          cd ..
+          ls -lh out/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mrome-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: |
+            out/*.tar.gz
+            out/*.zip
+          if-no-files-found: error
+          retention-days: 3
+
+  release:
+    name: 发布
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: mrome-*
+          path: artifacts
+          merge-multiple: true
+
+      - name: 汇总产物并生成校验和
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp artifacts/*.tar.gz artifacts/*.zip dist/
+          cd dist
+          sha256sum ./* > checksums.txt
+          ls -lh
+
+      - name: 创建 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: Mrome ${{ env.RELEASE_TAG }}
+          files: dist/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+          body: |
+            Mrome ${{ env.RELEASE_TAG }}
+
+            ### 下载对应平台
+
+            | 平台 | 文件 |
+            | --- | --- |
+            | Linux x86_64 | `mrome-${{ env.RELEASE_TAG }}-linux-amd64.tar.gz` |
+            | Linux ARM64 | `mrome-${{ env.RELEASE_TAG }}-linux-arm64.tar.gz` |
+            | Windows x64 | `mrome-${{ env.RELEASE_TAG }}-windows-amd64.zip` |
+            | macOS Intel | `mrome-${{ env.RELEASE_TAG }}-darwin-amd64.tar.gz` |
+            | macOS Apple Silicon | `mrome-${{ env.RELEASE_TAG }}-darwin-arm64.tar.gz` |
+
+            校验和见 `checksums.txt`。
+
+            ### 使用
+
+            ```bash
+            tar xzf mrome-*-linux-amd64.tar.gz
+            cd mrome-*-linux-amd64
+            ./mrome            # 打开 http://localhost:4533
+            ```
+
+            压缩包里已经带上构建好的前端（`web/dist`），解压即可运行，无需 Node 环境。
+            数据与音乐默认落在 `./data`，可用 `MROME_DATA_DIR` / `MROME_MUSIC_DIR` 覆盖。
