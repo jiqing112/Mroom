@@ -266,7 +266,7 @@
     letter-spacing: -0.04em;
     margin: 0;
   }
-  @media (max-width: 860px) {
+  @media (max-width: 1023px) {
     .main {
       padding-bottom: 106px;
     }

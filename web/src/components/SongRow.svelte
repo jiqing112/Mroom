@@ -369,6 +369,25 @@
   .menu-item.danger:hover {
     background: rgba(251, 113, 133, 0.1);
   }
+  /* Between the collapsed sidebar and the phone layout the album column is the
+     first thing to go — it squeezes the title harder than anything else. */
+  @media (min-width: 861px) and (max-width: 1023px) {
+    .song-row {
+      grid-template-columns: 34px 44px minmax(0, 1fr) 62px 84px;
+    }
+    .song-row.no-cover {
+      grid-template-columns: 34px minmax(0, 1fr) 62px 84px;
+    }
+    .song-row.no-album {
+      grid-template-columns: 34px 44px minmax(0, 1fr) 62px 84px;
+    }
+    .song-row.no-cover.no-album {
+      grid-template-columns: 34px minmax(0, 1fr) 62px 84px;
+    }
+    .col-album {
+      display: none;
+    }
+  }
   @media (max-width: 860px) {
     .song-row {
       grid-template-columns: 26px 40px minmax(0, 1fr) 80px;

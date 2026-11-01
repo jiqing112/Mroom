@@ -417,7 +417,8 @@
   .row {
     display: grid;
     grid-auto-flow: column;
-    grid-auto-columns: 172px;
+    /* Shrink slightly on narrow windows so a row does not end with a half card. */
+    grid-auto-columns: clamp(148px, 17vw, 172px);
     gap: 16px;
     overflow-x: auto;
     padding: 2px 2px 10px;
@@ -438,7 +439,7 @@
       background-position: -200% 0;
     }
   }
-  @media (max-width: 900px) {
+  @media (max-width: 820px) {
     .hero {
       grid-template-columns: 1fr;
       padding: 24px 22px 28px;

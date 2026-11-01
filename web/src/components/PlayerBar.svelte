@@ -422,7 +422,7 @@
       display: none;
     }
   }
-  @media (max-width: 860px) {
+  @media (max-width: 1023px) {
     .player {
       left: 8px;
       right: 8px;
@@ -438,6 +438,10 @@
     .left {
       width: 100%;
       gap: 10px;
+    }
+    /* Let the title block take the slack so the controls sit at the right edge. */
+    .meta {
+      flex: 1;
     }
     .cover-btn :global(.thumb) {
       width: 40px;
