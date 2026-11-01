@@ -736,6 +736,12 @@
   .q-row:hover .q-del {
     opacity: 1;
   }
+  /* Short desktop windows: a 70vh panel pushes the stage past the viewport. */
+  @media (min-width: 1024px) and (max-height: 960px) {
+    .panel {
+      height: min(62vh, 560px);
+    }
+  }
   @media (max-width: 1023px) {
     .inner {
       padding: 16px 18px 24px;
@@ -747,17 +753,22 @@
       align-items: start;
     }
     .vinyl {
-      width: min(58vw, 260px);
+      width: min(46vw, 220px);
     }
     .info {
-      margin-top: 24px;
+      margin-top: 16px;
     }
     .info h1 {
       font-size: 1.65rem;
     }
+    /* Keep the whole stage close to one screen: a tall lyrics card used to push
+       everything past the viewport on 900px-wide windows. */
     .panel {
-      height: 46vh;
-      min-height: 320px;
+      height: 32vh;
+      min-height: 200px;
+    }
+    .lyrics-empty {
+      min-height: 150px;
     }
     .head .eyebrow {
       font-size: 9px;
