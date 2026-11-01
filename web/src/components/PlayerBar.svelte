@@ -123,6 +123,25 @@
         <Star size={15} strokeWidth={1.6} fill={track.starred ? 'currentColor' : 'none'} />
       </button>
 
+      <div class="m-vol">
+        <button class="icon-btn" onclick={toggleMute} title="静音" aria-label="静音">
+          {#if player.muted || player.volume === 0}
+            <VolumeX size={15} strokeWidth={1.6} />
+          {:else if player.volume < 0.5}
+            <Volume1 size={15} strokeWidth={1.6} />
+          {:else}
+            <Volume2 size={15} strokeWidth={1.6} />
+          {/if}
+        </button>
+        <Slider
+          class="m-vol-slider"
+          value={player.muted ? 0 : player.volume * 100}
+          max={100}
+          onseek={(v) => setVolume(v / 100)}
+          label="音量"
+        />
+      </div>
+
       <div class="m-btns">
         <button
           class="icon-btn"
@@ -405,7 +424,8 @@
     width: 78px;
   }
   .m-btns,
-  .m-timeline {
+  .m-timeline,
+  .m-vol {
     display: none;
   }
   .m-progress {
@@ -470,6 +490,20 @@
       height: 32px;
       margin: 0 3px;
     }
+    .m-vol {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      flex: none;
+      margin-right: 6px;
+    }
+    .m-vol .icon-btn {
+      width: 32px;
+      height: 32px;
+    }
+    :global(.m-vol-slider) {
+      width: 64px;
+    }
     .m-timeline {
       display: flex;
       align-items: center;
@@ -483,6 +517,12 @@
       width: 34px;
       text-align: center;
       flex: none;
+    }
+  }
+  /* On a phone the slider would eat the title; the mute toggle stays. */
+  @media (max-width: 600px) {
+    :global(.m-vol-slider) {
+      display: none;
     }
   }
 </style>
