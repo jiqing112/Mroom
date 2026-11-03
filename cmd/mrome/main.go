@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -63,7 +64,7 @@ func main() {
 		}
 	}
 
-	sc := scanner.New(st, cfg.MusicDir, cfg.CoversDir)
+	sc := scanner.New(st, cfg.MusicDir, cfg.CoversDir, filepath.Join(cfg.DataDir, "trash"))
 	if cfg.ScanOnStart {
 		go func() {
 			time.Sleep(400 * time.Millisecond)

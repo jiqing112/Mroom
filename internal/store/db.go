@@ -106,6 +106,7 @@ CREATE TABLE IF NOT EXISTS songs (
   suffix       TEXT NOT NULL DEFAULT '',
   content_type TEXT NOT NULL DEFAULT '',
   lyrics       TEXT NOT NULL DEFAULT '',
+  md5          TEXT NOT NULL DEFAULT '',
   meta_edited  INTEGER NOT NULL DEFAULT 0,
   file_mtime   INTEGER NOT NULL DEFAULT 0,
   created_at   INTEGER NOT NULL,
@@ -162,6 +163,7 @@ func (s *Store) migrate() error {
 	for _, col := range []struct{ table, name, def string }{
 		{"songs", "meta_edited", "INTEGER NOT NULL DEFAULT 0"},
 		{"songs", "file_mtime", "INTEGER NOT NULL DEFAULT 0"},
+		{"songs", "md5", "TEXT NOT NULL DEFAULT ''"},
 		{"users", "session_version", "INTEGER NOT NULL DEFAULT 0"},
 	} {
 		ok, err := s.hasColumn(col.table, col.name)
@@ -173,6 +175,11 @@ func (s *Store) migrate() error {
 				return err
 			}
 		}
+	}
+	// Only safe after the ALTERs above: on databases created before the md5
+	// column existed the index statement would fail inside the base schema.
+	if _, err := s.db.Exec(`CREATE INDEX IF NOT EXISTS idx_songs_md5 ON songs(md5)`); err != nil {
+		return err
 	}
 	return nil
 }

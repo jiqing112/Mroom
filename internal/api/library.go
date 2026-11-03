@@ -129,7 +129,7 @@ func (s *Server) deleteSong(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}
-	target := uniquePath(filepath.Join(trash, filepath.Base(file.Path)))
+	target := util.UniquePath(filepath.Join(trash, filepath.Base(file.Path)))
 	if err := os.Rename(file.Path, target); err != nil {
 		if !os.IsNotExist(err) {
 			// Cross-device moves cannot be renamed; fall back to a copy.
@@ -184,7 +184,7 @@ func cleanupAlbumFolder(audioPath, trash string) {
 		if st, err := os.Stat(p); err != nil || st.IsDir() {
 			continue
 		}
-		target := uniquePath(filepath.Join(trash, name))
+		target := util.UniquePath(filepath.Join(trash, name))
 		if err := os.Rename(p, target); err != nil {
 			if err := copyFile(p, target); err == nil {
 				_ = os.Remove(p)

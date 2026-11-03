@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -37,13 +38,14 @@ type Scanner struct {
 	store    *store.Store
 	musicDir string
 	covers   string
+	trash    string
 
 	mu    sync.Mutex
 	state State
 }
 
-func New(st *store.Store, musicDir, coversDir string) *Scanner {
-	return &Scanner{store: st, musicDir: musicDir, covers: coversDir}
+func New(st *store.Store, musicDir, coversDir, trashDir string) *Scanner {
+	return &Scanner{store: st, musicDir: musicDir, covers: coversDir, trash: trashDir}
 }
 
 func (s *Scanner) Status() State {
@@ -159,7 +161,7 @@ func (s *Scanner) run(ctx context.Context) (state State, err error) {
 		// The song ID is derived from the relative path, so the row must survive
 		// this scan even if reading the file fails transiently.
 		seen[store.SongID(f.rel)] = true
-		id, added, err := s.ingest(f.abs, f.rel, folderCovers)
+		id, added, err := s.ingest(f.abs, f.rel, folderCovers, "")
 		s.mu.Lock()
 		s.state.Done = i + 1
 		s.state.Current = f.rel
@@ -184,23 +186,80 @@ func (s *Scanner) run(ctx context.Context) (state State, err error) {
 	if !walkIncomplete {
 		removed, _ = s.store.DeleteMissing(seen)
 	}
+	deduped := s.dedupByContent()
 	if err := s.store.RefreshAlbumStats(); err != nil {
 		return s.Status(), err
 	}
 
 	s.mu.Lock()
-	s.state.Removed = removed
+	s.state.Removed = removed + deduped
+	if deduped > 0 {
+		s.state.Message = fmt.Sprintf("扫描完成，按内容去重清理 %d 首重复歌曲", deduped)
+	}
 	s.mu.Unlock()
 	return s.Status(), nil
 }
 
+// dedupByContent removes songs whose file bytes are identical to an earlier
+// import: the earliest copy stays, the rest are moved to the trash so nothing
+// is destroyed irreversibly. Files without a hash (not yet backfilled) are
+// left alone.
+func (s *Scanner) dedupByContent() int {
+	groups, err := s.store.MD5Duplicates()
+	if err != nil {
+		return 0
+	}
+	n := 0
+	for _, g := range groups {
+		for _, id := range g.Extra {
+			if p, err := s.store.SongPath(id); err == nil && p != "" {
+				s.trashFile(p)
+			}
+			if err := s.store.DeleteSong(id); err == nil {
+				n++
+			}
+		}
+	}
+	return n
+}
+
+// trashFile moves a library file into the trash dir, mirroring the manual
+// delete flow so a bad dedup can be undone by hand.
+func (s *Scanner) trashFile(p string) {
+	if s.trash == "" {
+		return
+	}
+	if err := os.MkdirAll(s.trash, 0o755); err != nil {
+		return
+	}
+	target := util.UniquePath(filepath.Join(s.trash, filepath.Base(p)))
+	if err := os.Rename(p, target); err != nil {
+		// Cross-device fallback: copy then remove.
+		if in, ierr := os.Open(p); ierr == nil {
+			out, oerr := os.Create(target)
+			if oerr == nil {
+				_, _ = io.Copy(out, in)
+				out.Close()
+			}
+			in.Close()
+			_ = os.Remove(p)
+		}
+	}
+}
+
 // ScanFile ingests a single uploaded file.
 func (s *Scanner) ScanFile(absPath string) (string, error) {
+	return s.ScanFileHashed(absPath, "")
+}
+
+// ScanFileHashed ingests a single file whose content hash is already known
+// (upload completion), saving a second read of the file.
+func (s *Scanner) ScanFileHashed(absPath, md5 string) (string, error) {
 	rel, err := filepath.Rel(s.musicDir, absPath)
 	if err != nil {
 		rel = filepath.Base(absPath)
 	}
-	id, added, err := s.ingest(absPath, rel, map[string]folderCoverResult{})
+	id, added, err := s.ingest(absPath, rel, map[string]folderCoverResult{}, md5)
 	if err != nil {
 		return "", err
 	}
@@ -226,7 +285,7 @@ func (s *Scanner) ScanFile(absPath string) (string, error) {
 	return id, nil
 }
 
-func (s *Scanner) ingest(abs, rel string, folderCovers map[string]folderCoverResult) (string, bool, error) {
+func (s *Scanner) ingest(abs, rel string, folderCovers map[string]folderCoverResult, knownMD5 string) (string, bool, error) {
 	if full, err := filepath.Abs(abs); err == nil {
 		abs = full
 	}
@@ -298,6 +357,17 @@ func (s *Scanner) ingest(abs, rel string, folderCovers map[string]folderCoverRes
 	}
 	if in.Lyrics == "" {
 		in.Lyrics = embeddedLyrics
+	}
+
+	// Content hash for duplicate detection. Unchanged files reuse the stored
+	// hash; everything else (new, changed, or not yet hashed) is read once.
+	if knownMD5 != "" {
+		in.MD5 = knownMD5
+	} else if old, size, mtime, ok := s.store.StoredFileInfo(abs); ok && old != "" &&
+		size == st.Size() && mtime == st.ModTime().Unix() {
+		in.MD5 = old
+	} else if h, herr := util.MD5File(abs); herr == nil {
+		in.MD5 = h
 	}
 
 	// Folder-level cover art when the file carries none. The lookup is cached

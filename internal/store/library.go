@@ -623,10 +623,12 @@ func (s *Store) UpsertTrack(t TrackInput) (string, error) {
 		oldSize == t.Size && oldMtime == t.ModTime {
 		_, err := s.db.Exec(`UPDATE songs SET path=?, duration=?, bitrate=?, sample_rate=?, channels=?,
 				size=?, suffix=?, content_type=?,
-				lyrics=CASE WHEN ?<>'' THEN ? ELSE lyrics END, file_mtime=?, updated_at=?
+				lyrics=CASE WHEN ?<>'' THEN ? ELSE lyrics END,
+				md5=CASE WHEN ?<>'' THEN ? ELSE md5 END,
+				file_mtime=?, updated_at=?
 			WHERE id=?`,
 			filepath.ToSlash(t.AbsPath), t.Duration, t.Bitrate, t.SampleRate, t.Channels,
-			t.Size, t.Suffix, t.ContentType, t.Lyrics, t.Lyrics, t.ModTime, ts, sid)
+			t.Size, t.Suffix, t.ContentType, t.Lyrics, t.Lyrics, t.MD5, t.MD5, t.ModTime, ts, sid)
 		return sid, err
 	}
 
@@ -656,9 +658,9 @@ func (s *Store) UpsertTrack(t TrackInput) (string, error) {
 	}
 
 	_, err := s.db.Exec(`INSERT INTO songs(id,path,title,artist_id,artist,album_id,album,album_artist,genre,
-			track,disc,year,duration,bitrate,sample_rate,channels,size,suffix,content_type,lyrics,
+			track,disc,year,duration,bitrate,sample_rate,channels,size,suffix,content_type,lyrics,md5,
 			meta_edited,file_mtime,created_at,updated_at)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 		ON CONFLICT(id) DO UPDATE SET
 			path=excluded.path, title=excluded.title, artist_id=excluded.artist_id, artist=excluded.artist,
 			album_id=excluded.album_id, album=excluded.album, album_artist=excluded.album_artist,
@@ -667,11 +669,12 @@ func (s *Store) UpsertTrack(t TrackInput) (string, error) {
 			channels=excluded.channels, size=excluded.size, suffix=excluded.suffix,
 			content_type=excluded.content_type,
 			lyrics=CASE WHEN excluded.lyrics<>'' THEN excluded.lyrics ELSE songs.lyrics END,
+			md5=CASE WHEN excluded.md5<>'' THEN excluded.md5 ELSE songs.md5 END,
 			meta_edited=0, file_mtime=excluded.file_mtime,
 			updated_at=excluded.updated_at`,
 		sid, filepath.ToSlash(t.AbsPath), title, aid, artistName, alid, albumName, albumArtist, t.Genre,
 		t.Track, t.Disc, t.Year, t.Duration, t.Bitrate, t.SampleRate, t.Channels, t.Size, t.Suffix, t.ContentType,
-		t.Lyrics, 0, t.ModTime, ts, ts)
+		t.Lyrics, t.MD5, 0, t.ModTime, ts, ts)
 	if err != nil {
 		return "", err
 	}
@@ -738,6 +741,67 @@ func (s *Store) SongByPath(path string) (string, error) {
 		return "", nil
 	}
 	return id, err
+}
+
+// SongPath returns the on-disk path of a library song, empty when unknown.
+func (s *Store) SongPath(id string) (string, error) {
+	var p string
+	err := s.db.QueryRow(`SELECT path FROM songs WHERE id=?`, id).Scan(&p)
+	if err != nil {
+		return "", err
+	}
+	return p, nil
+}
+
+// StoredFileInfo returns the previously recorded content hash, size and mtime
+// of a library file so the scanner can skip re-hashing unchanged files.
+func (s *Store) StoredFileInfo(path string) (md5 string, size, mtime int64, ok bool) {
+	err := s.db.QueryRow(`SELECT md5, size, file_mtime FROM songs WHERE path=?`, filepath.ToSlash(path)).
+		Scan(&md5, &size, &mtime)
+	return md5, size, mtime, err == nil
+}
+
+// SongIDByMD5 returns the library song whose content matches the given hash.
+func (s *Store) SongIDByMD5(hash string) (string, bool) {
+	if hash == "" {
+		return "", false
+	}
+	var id string
+	err := s.db.QueryRow(`SELECT id FROM songs WHERE md5=? LIMIT 1`, hash).Scan(&id)
+	return id, err == nil
+}
+
+// MD5DuplicateGroup is one set of byte-identical songs. The first entry is the
+// keeper (earliest imported); the rest are duplicates to remove.
+type MD5DuplicateGroup struct {
+	MD5  string
+	Keep string   // song id to keep
+	Extra []string // song ids to remove
+}
+
+// MD5Duplicates groups songs by identical content hash. Rows without a hash
+// are ignored, so the result only grows as the scanner backfills hashes.
+func (s *Store) MD5Duplicates() ([]MD5DuplicateGroup, error) {
+	rows, err := s.db.Query(`SELECT md5, id FROM songs
+		WHERE md5 IN (SELECT md5 FROM songs WHERE md5<>'' GROUP BY md5 HAVING COUNT(*)>1)
+		ORDER BY md5, created_at, id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []MD5DuplicateGroup
+	for rows.Next() {
+		var hash, id string
+		if err := rows.Scan(&hash, &id); err != nil {
+			return nil, err
+		}
+		if len(out) == 0 || out[len(out)-1].MD5 != hash {
+			out = append(out, MD5DuplicateGroup{MD5: hash, Keep: id})
+			continue
+		}
+		out[len(out)-1].Extra = append(out[len(out)-1].Extra, id)
+	}
+	return out, rows.Err()
 }
 
 // ArtistCover returns the cover of the artist's most recent album that has one.

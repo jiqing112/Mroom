@@ -19,6 +19,8 @@
   const sentBytes = $derived(items.reduce((a, b) => a + b.size * (b.progress || 0), 0))
   const overall = $derived(totalBytes > 0 ? sentBytes / totalBytes : 0)
   const doneCount = $derived(items.filter((i) => i.status === 'done').length)
+  const skippedCount = $derived(items.filter((i) => i.status === 'skipped').length)
+  const finishedCount = $derived(doneCount + skippedCount)
   const busy = $derived(items.some((i) => i.status === 'uploading' || i.status === 'queued'))
 
   function humanSize(bytes) {
@@ -92,12 +94,22 @@
         sent = d.received
         item.progress = sent / item.size
       }
-      await api.post(`/api/upload/${item.id}/complete`)
-      item.status = 'done'
-      item.progress = 1
+      const done = await api.post(`/api/upload/${item.id}/complete`)
+      if (done.duplicate) {
+        // The server refused a byte-identical copy: nothing was ingested.
+        item.status = 'skipped'
+        item.progress = 1
+      } else {
+        item.status = 'done'
+        item.progress = 1
+      }
       window.dispatchEvent(new CustomEvent('mrome:refresh'))
-      if (items.every((i) => i.status === 'done' || i.status === 'error')) {
-        notify.ok('上传完成，已自动入库')
+      if (items.every((i) => i.status === 'done' || i.status === 'error' || i.status === 'skipped')) {
+        if (items.some((i) => i.status === 'skipped')) {
+          notify.ok(`上传完成，${items.filter((i) => i.status === 'skipped').length} 首重复内容已自动跳过`)
+        } else {
+          notify.ok('上传完成，已自动入库')
+        }
       }
     } catch (e) {
       item.status = 'error'
@@ -122,7 +134,7 @@
   }
 
   function clearDone() {
-    items = items.filter((i) => i.status !== 'done')
+    items = items.filter((i) => i.status !== 'done' && i.status !== 'skipped')
   }
 
   function onDrop(e) {
@@ -222,7 +234,7 @@
           <div>
             <span class="eyebrow">Queue</span>
             <span class="q-summary">
-              {doneCount}/{items.length} 完成 · {humanSize(sentBytes)} / {humanSize(totalBytes)}
+              {finishedCount}/{items.length} 完成 · {humanSize(sentBytes)} / {humanSize(totalBytes)}
             </span>
           </div>
           <div class="q-actions">
@@ -237,7 +249,12 @@
 
         <div class="files">
           {#each items as item (item.key)}
-            <div class="file" class:done={item.status === 'done'} class:error={item.status === 'error'}>
+            <div
+              class="file"
+              class:done={item.status === 'done'}
+              class:error={item.status === 'error'}
+              class:skipped={item.status === 'skipped'}
+            >
               <div class="f-icon">
                 <FileAudio size={16} strokeWidth={1.5} />
               </div>
@@ -249,6 +266,8 @@
                     <span class="sep">·</span><span>{Math.round(item.progress * 100)}%</span>
                   {:else if item.status === 'done'}
                     <span class="sep">·</span><span class="ok">已入库</span>
+                  {:else if item.status === 'skipped'}
+                    <span class="sep">·</span><span class="dup">内容重复，已跳过</span>
                   {:else if item.status === 'error'}
                     <span class="sep">·</span><span class="bad">{item.error}</span>
                   {:else if item.status === 'queued'}
@@ -260,6 +279,8 @@
               <div class="f-end">
                 {#if item.status === 'done'}
                   <span class="check"><Check size={15} /></span>
+                {:else if item.status === 'skipped'}
+                  <button class="icon-btn" onclick={() => cancel(item)} title="移除"><X size={14} /></button>
                 {:else if item.status === 'error'}
                   <button class="icon-btn" onclick={() => retry(item)} title="重试"><RotateCw size={14} /></button>
                 {:else}
@@ -396,6 +417,12 @@
   .file.done {
     border-color: rgba(74, 222, 128, 0.22);
     background: rgba(74, 222, 128, 0.05);
+  }
+  .file.skipped {
+    opacity: 0.72;
+  }
+  .dup {
+    color: var(--text-3);
   }
   .file.error {
     border-color: rgba(251, 113, 133, 0.28);

@@ -4,7 +4,11 @@ import (
 	"crypto/md5"
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -75,4 +79,36 @@ func ClientKey(r *http.Request) string {
 		host = host[:i]
 	}
 	return host
+}
+
+// MD5File computes the hex MD5 of the file at path, streaming so large audio
+// files never sit in memory.
+func MD5File(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	h := md5.New()
+	if _, err := io.CopyBuffer(h, f, make([]byte, 1<<20)); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// UniquePath returns p, or p (2), p (3)... for the first name that does not
+// exist yet, so a new file never silently overwrites an old one.
+func UniquePath(p string) string {
+	if _, err := os.Stat(p); os.IsNotExist(err) {
+		return p
+	}
+	ext := filepath.Ext(p)
+	base := strings.TrimSuffix(p, ext)
+	for i := 2; i < 1000; i++ {
+		candidate := fmt.Sprintf("%s (%d)%s", base, i, ext)
+		if _, err := os.Stat(candidate); os.IsNotExist(err) {
+			return candidate
+		}
+	}
+	return p
 }

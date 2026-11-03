@@ -109,6 +109,7 @@ type TrackInput struct {
 	Channels    int
 	Suffix      string
 	ContentType string
+	MD5         string
 	CoverData   []byte
 	CoverMime   string
 	Lyrics      string

@@ -193,6 +193,25 @@ func (s *Server) uploadComplete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Content-level dedup: the same bytes must never enter the library twice,
+	// no matter how the client ended up re-uploading them (page kept open,
+	// retried request, re-added file). The part file is read once and the
+	// hash is reused for ingestion below.
+	hash, err := util.MD5File(partPath)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		return
+	}
+	if existing, found := s.Store.SongIDByMD5(hash); found {
+		_ = os.Remove(partPath)
+		_ = os.Remove(s.uploadMetaPath(id))
+		s.uploads.Delete(id)
+		writeJSON(w, http.StatusOK, map[string]any{
+			"ok": true, "duplicate": true, "songId": existing, "path": meta.RelPath,
+		})
+		return
+	}
+
 	target := filepath.Join(s.Cfg.MusicDir, filepath.FromSlash(meta.RelPath))
 	// Defensive check against path traversal.
 	absMusic, _ := filepath.Abs(s.Cfg.MusicDir)
@@ -205,7 +224,7 @@ func (s *Server) uploadComplete(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}
-	target = uniquePath(target)
+	target = util.UniquePath(target)
 	if err := os.Rename(partPath, target); err != nil {
 		// Cross-device fallback.
 		if err := copyFile(partPath, target); err != nil {
@@ -217,7 +236,7 @@ func (s *Server) uploadComplete(w http.ResponseWriter, r *http.Request) {
 	_ = os.Remove(s.uploadMetaPath(id))
 	s.uploads.Delete(id)
 
-	songID, scanErr := s.Scanner.ScanFile(target)
+	songID, scanErr := s.Scanner.ScanFileHashed(target, hash)
 	resp := map[string]any{"ok": true, "path": meta.RelPath, "songId": songID}
 	if scanErr != nil {
 		resp["warning"] = scanErr.Error()
@@ -231,21 +250,6 @@ func (s *Server) uploadAbort(w http.ResponseWriter, r *http.Request) {
 	_ = os.Remove(s.uploadPartPath(id))
 	_ = os.Remove(s.uploadMetaPath(id))
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
-}
-
-func uniquePath(p string) string {
-	if _, err := os.Stat(p); os.IsNotExist(err) {
-		return p
-	}
-	ext := filepath.Ext(p)
-	base := strings.TrimSuffix(p, ext)
-	for i := 2; i < 1000; i++ {
-		candidate := fmt.Sprintf("%s (%d)%s", base, i, ext)
-		if _, err := os.Stat(candidate); os.IsNotExist(err) {
-			return candidate
-		}
-	}
-	return p
 }
 
 func copyFile(src, dst string) error {
