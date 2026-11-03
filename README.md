@@ -79,10 +79,12 @@ Mrome 是一个**单二进制**的私人音乐服务：把歌丢进目录（或�
 **音乐库**
 
 - 拖拽 / 文件夹批量上传，4 MB 分片、断点续传、并发 2、失败重试
+- **MD5 内容去重**：上传完成即校验，库中已有相同内容自动跳过并在队列中标注；每次扫描按内容哈希清理重复副本（保留最早导入的一份，其余移入回收站）
 - 扫描目录并解析 ID3v1/v2、Vorbis Comment、MP4/M4A、FLAC 标签
 - 自动提取内嵌封面或同目录 `cover.jpg`，按显示尺寸返回服务端缩放的缩略图（160/320/640/1024，磁盘缓存），前端用 `srcset` 自动选择
 - 无标签文件归入「未知艺术家 / 未知专辑」，仍可播放
-- 手动编辑元数据（管理员，重新扫描后仍保留）、关键词搜索、按艺术家 / 专辑 / 流派 / 最近添加浏览
+- 手动编辑元数据（管理员，重新扫描后仍保留）、**歌曲重命名**（行内菜单直达）、关键词搜索、按艺术家 / 专辑 / 流派 / 最近添加浏览
+- 删除的歌曲进入回收站（`data/trash`），不会直接销毁文件
 - 歌单创建、改名、增删歌曲，与 Subsonic 客户端双向同步
 - 收藏页、评分、播放计数、**最近播放**（网页与客户端共用一份记录）
 - 定时自动重扫（默认 6 小时），新文件丢进目录无需手动点
@@ -147,12 +149,33 @@ docker compose up -d
 ```bash
 go build -o mrome ./cmd/mrome
 cd web && npm install && npm run build && cd ..
-./mrome            # 必须在仓库根目录启动（配置里是相对路径）
+./mrome
 ```
 
 `web/dist` 由 Go 直接以 `http.FileServer` 读取，改前端只需 `npm run build`，不必重启进程。
 
+### 便携式布局（推荐）
+
+所有相对路径都锚定到**可执行文件所在目录**（而不是启动时的工作目录），且 `config.yaml` / `.env` 也会自动在二进制旁边查找。因此推荐的部署形态是：
+
+```
+/opt/mrome/
+├── mrome            # 二进制
+├── config.yaml
+├── web/dist/        # 前端产物
+└── data/            # 启动后自动生成
+    ├── mrome.db     # 数据库
+    ├── music/       # 音乐目录
+    ├── covers/      # 封面缓存
+    ├── uploads/     # 上传分片
+    └── trash/       # 回收站（删除与去重清理的文件）
+```
+
+迁移 = 停服后打包整个目录拷走，解压即用，无需改任何配置。即使从别的目录启动（如 `cd / && /opt/mrome/mrome`），数据也落在二进制旁边。
+
 ### 环境变量优先于配置文件
+
+需要把数据放到别处（如 FHS 规范目录）时，用绝对路径覆盖即可：
 
 ```bash
 MROME_DATA_DIR=/var/lib/mrome \
@@ -177,8 +200,8 @@ python scripts/make_demo_lyrics.py    # 按真实时长生成 .lrc
 | YAML 键 | 环境变量 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `addr` | `MROME_ADDR` | `:4533` | 监听地址 |
-| `music_dir` | `MROME_MUSIC_DIR` | `./data/music` | 音乐目录 |
-| `data_dir` | `MROME_DATA_DIR` | `./data` | 数据根目录 |
+| `music_dir` | `MROME_MUSIC_DIR` | `./data/music` | 音乐目录（相对路径锚定到二进制所在目录） |
+| `data_dir` | `MROME_DATA_DIR` | `./data` | 数据根目录（同上） |
 | `db` | `MROME_DB` | `<data>/mrome.db` | SQLite 路径 |
 | `covers_dir` | `MROME_COVERS_DIR` | `<data>/covers` | 封面缓存 |
 | `uploads_dir` | `MROME_UPLOADS_DIR` | `<data>/uploads` | 分片暂存 |

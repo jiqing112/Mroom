@@ -133,18 +133,85 @@ func pickRaw(y map[string]string, envKey, yamlKey, def string) string {
 	return def
 }
 
+// baseDir anchors every relative path: the directory holding the executable
+// itself, so binary, config, database and music live together in one folder
+// that can be packed up and moved as a whole. `go run` builds live in the
+// system temp dir — fall back to the working directory there.
+func baseDir() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return "."
+	}
+	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = resolved
+	}
+	dir := filepath.Dir(exe)
+	if isSubPath(dir, os.TempDir()) {
+		return "."
+	}
+	return dir
+}
+
+// isSubPath reports whether path is located inside (or equal to) parent.
+func isSubPath(path, parent string) bool {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	absParent, err := filepath.Abs(parent)
+	if err != nil {
+		return false
+	}
+	rel, err := filepath.Rel(absParent, abs)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (!strings.HasPrefix(rel, "..") && rel != "")
+}
+
+// anchor resolves a configured path: absolute values pass through untouched,
+// relative ones are joined onto the base directory (the executable's home).
+func anchor(p string) string {
+	if p == "" || filepath.IsAbs(p) {
+		return p
+	}
+	return filepath.Join(baseDir(), p)
+}
+
+// findConfigFile looks for config.yaml next to the working directory first,
+// then beside the executable, so a portable folder works from any CWD.
+func findConfigFile() string {
+	if custom := strings.TrimSpace(os.Getenv("MROME_CONFIG")); custom != "" {
+		return custom
+	}
+	if _, err := os.Stat("config.yaml"); err == nil {
+		return "config.yaml"
+	}
+	if alt := filepath.Join(baseDir(), "config.yaml"); alt != "config.yaml" {
+		if _, err := os.Stat(alt); err == nil {
+			return alt
+		}
+	}
+	return "config.yaml"
+}
+
 func Load() Config {
 	loadDotEnv(".env")
-	y := loadYAML(env("MROME_CONFIG", "config.yaml"))
-	dataDir := pick(y, "MROME_DATA_DIR", "data_dir", "./data")
+	if _, err := os.Stat(".env"); err != nil {
+		if alt := filepath.Join(baseDir(), ".env"); alt != ".env" {
+			loadDotEnv(alt)
+		}
+	}
+	y := loadYAML(findConfigFile())
+	dataDir := anchor(pick(y, "MROME_DATA_DIR", "data_dir", "./data"))
 	c := Config{
 		Addr:              pick(y, "MROME_ADDR", "addr", ":4533"),
-		MusicDir:          pick(y, "MROME_MUSIC_DIR", "music_dir", filepath.Join(dataDir, "music")),
+		MusicDir:          anchor(pick(y, "MROME_MUSIC_DIR", "music_dir", filepath.Join(dataDir, "music"))),
 		DataDir:           dataDir,
-		DBPath:            pick(y, "MROME_DB", "db", filepath.Join(dataDir, "mrome.db")),
-		CoversDir:         pick(y, "MROME_COVERS_DIR", "covers_dir", filepath.Join(dataDir, "covers")),
-		UploadsDir:        pick(y, "MROME_UPLOADS_DIR", "uploads_dir", filepath.Join(dataDir, "uploads")),
-		WebDir:            pick(y, "MROME_WEB_DIR", "web_dir", "./web/dist"),
+		DBPath:            anchor(pick(y, "MROME_DB", "db", filepath.Join(dataDir, "mrome.db"))),
+		CoversDir:         anchor(pick(y, "MROME_COVERS_DIR", "covers_dir", filepath.Join(dataDir, "covers"))),
+		UploadsDir:        anchor(pick(y, "MROME_UPLOADS_DIR", "uploads_dir", filepath.Join(dataDir, "uploads"))),
+		WebDir:            anchor(pick(y, "MROME_WEB_DIR", "web_dir", "./web/dist")),
 		AdminUser:         pickRaw(y, "MROME_ADMIN_USER", "admin_user", "admin"),
 		AdminPassword:     pickRaw(y, "MROME_ADMIN_PASSWORD", "admin_password", "admin"),
 		MaxUploadMB:       int64(atoi(pick(y, "MROME_MAX_UPLOAD_MB", "max_upload_mb", "512"), 512)),

@@ -3,6 +3,10 @@
 # 优先级：真实环境变量 > .env > config.yaml > 内置默认值
 # 只需要写出想覆盖的项；文件位置可用 MROME_CONFIG 指定。
 # 本项目只解析顶层 “键: 值”，不支持嵌套结构。
+#
+# 便携式布局：所有相对路径都锚定到「可执行文件所在目录」，而不是启动时的工作目录。
+# 把 mrome 二进制、本文件、web/ 放在同一目录后，数据库、音乐、封面、上传、
+# 回收站会全部生成在同级 data/ 下 —— 迁移 = 直接打包整个目录拷走。
 
 # 监听地址与前端产物
 addr: ":4533"
@@ -14,6 +18,7 @@ music_dir: "./data/music"
 # db: "./data/mrome.db"            # 默认 <data_dir>/mrome.db
 # covers_dir: "./data/covers"      # 默认 <data_dir>/covers
 # uploads_dir: "./data/uploads"    # 默认 <data_dir>/uploads
+# 回收站固定为 <data_dir>/trash
 
 # 首次启动时创建管理员（仅当库中还没有管理员）。
 # 两项都留空 = 默认开启免登录访客模式：打开网页直接进入首页，
