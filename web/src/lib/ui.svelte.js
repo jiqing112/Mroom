@@ -23,6 +23,20 @@ export function closePlaylistPicker() {
   playlistPicker.track = null
 }
 
+// Global "rename song" dialog, opened from any song row's more menu.
+export const renameDialog = $state({ open: false, track: null })
+
+export function openRename(track) {
+  if (!track) return
+  renameDialog.track = track
+  renameDialog.open = true
+}
+
+export function closeRename() {
+  renameDialog.open = false
+  renameDialog.track = null
+}
+
 export function openSettings() {
   ui.settingsOpen = true
 }

@@ -1,3 +1,11 @@
+<script module>
+  // Shared by every SongRow instance: only one row menu may be open at a time.
+  // The "…" button swallows its click (stopPropagation keeps the row from
+  // starting playback), so the outside-click handler of an already open menu
+  // never fires — opening another row's menu has to close the previous one.
+  let activeMenu = null
+</script>
+
 <script>
   import {
     Play,
@@ -6,7 +14,8 @@
     MoreHorizontal,
     CornerDownRight,
     ListPlus,
-    ListMusic
+    ListMusic,
+    Pencil
   } from 'lucide-svelte'
   import Cover from './Cover.svelte'
   import Rating from './Rating.svelte'
@@ -18,7 +27,7 @@
     currentTrack,
     dropSongFromQueue
   } from '../lib/player.svelte.js'
-  import { openPlaylistPicker } from '../lib/ui.svelte.js'
+  import { openPlaylistPicker, openRename } from '../lib/ui.svelte.js'
   import { auth } from '../lib/auth.svelte.js'
   import { api } from '../lib/api.js'
   import { notify } from '../lib/toast.svelte.js'
@@ -40,21 +49,46 @@
   const isAdmin = $derived(!!auth.user?.isAdmin)
 
   let menuOpen = $state(false)
+  let menuUp = $state(false)
   let menuEl = $state(null)
+  let popEl = $state(null)
+  let menuToken = null
+  // Last measured menu height, reused to predict the flip before the next open.
+  let menuH = 248
+  // The player bar floats over the page bottom; keep the menu clear of it.
+  const BAR_RESERVE = 116
+
+  function closeMenu() {
+    menuOpen = false
+    if (menuToken && activeMenu === menuToken) activeMenu = null
+    menuToken = null
+  }
 
   $effect(() => {
     if (!menuOpen) return
     const onDoc = (e) => {
-      if (menuEl && !menuEl.contains(e.target)) menuOpen = false
+      if (menuEl && !menuEl.contains(e.target)) closeMenu()
     }
     const onKey = (e) => {
-      if (e.key === 'Escape') menuOpen = false
+      if (e.key === 'Escape') closeMenu()
     }
     document.addEventListener('click', onDoc)
     document.addEventListener('keydown', onKey)
     return () => {
       document.removeEventListener('click', onDoc)
       document.removeEventListener('keydown', onKey)
+    }
+  })
+
+  // Measure the real menu right after it opens: cache the height for next
+  // time and self-correct the placement if the pre-open estimate fell short.
+  $effect(() => {
+    if (!menuOpen || !popEl) return
+    const h = popEl.offsetHeight
+    if (h > 40) menuH = h
+    if (!menuUp) {
+      const r = popEl.getBoundingClientRect()
+      if (r.bottom > window.innerHeight - BAR_RESERVE) menuUp = true
     }
   })
 
@@ -78,9 +112,27 @@
     }
   }
 
+  function placeMenu(btn) {
+    const r = btn.getBoundingClientRect()
+    const below = window.innerHeight - BAR_RESERVE - r.bottom
+    // Flip up only when the space below cannot fit the menu and above has more.
+    menuUp = below < menuH && r.top > below
+  }
+
+  function openMenu(btn) {
+    placeMenu(btn)
+    // Closing the previously open menu (possibly on another row) before this
+    // one appears is what keeps two menus from stacking on top of each other.
+    activeMenu?.close()
+    menuOpen = true
+    menuToken = { close: closeMenu }
+    activeMenu = menuToken
+  }
+
   function toggleMenu(e) {
     e.stopPropagation()
-    menuOpen = !menuOpen
+    if (menuOpen) closeMenu()
+    else openMenu(e.currentTarget)
   }
 
   async function rate(n) {
@@ -111,7 +163,7 @@
   }
 
   async function removeFromLibrary() {
-    menuOpen = false
+    closeMenu()
     if (!confirm(`确定删除「${song.title}」？文件会移入回收站。`)) return
     try {
       await api.del(`/api/songs/${song.id}`)
@@ -204,11 +256,13 @@
       {#if menuOpen}
         <div
           class="menu glass-deep"
+          class:up={menuUp}
+          bind:this={popEl}
           role="menu"
           tabindex="-1"
           onclick={(e) => e.stopPropagation()}
           onkeydown={(e) => {
-            if (e.key === 'Escape') menuOpen = false
+            if (e.key === 'Escape') closeMenu()
             e.stopPropagation()
           }}
         >
@@ -216,14 +270,19 @@
             <span>评分</span>
             <Rating value={song.rating || 0} onrate={rate} size={13} />
           </div>
-          <button class="menu-item" role="menuitem" onclick={(e) => { e.stopPropagation(); menuOpen = false; playNext() }}>
+          <button class="menu-item" role="menuitem" onclick={(e) => { e.stopPropagation(); closeMenu(); playNext() }}>
             <CornerDownRight size={14} strokeWidth={1.6} /> 下一首播放
           </button>
-          <button class="menu-item" role="menuitem" onclick={(e) => { e.stopPropagation(); menuOpen = false; addToPlaylist() }}>
+          <button class="menu-item" role="menuitem" onclick={(e) => { e.stopPropagation(); closeMenu(); addToPlaylist() }}>
             <ListPlus size={14} strokeWidth={1.6} /> 加入歌单
           </button>
+          {#if isAdmin}
+            <button class="menu-item" role="menuitem" onclick={(e) => { e.stopPropagation(); closeMenu(); openRename(song) }}>
+              <Pencil size={14} strokeWidth={1.6} /> 重命名
+            </button>
+          {/if}
           {#if onremove}
-            <button class="menu-item" role="menuitem" onclick={(e) => { e.stopPropagation(); menuOpen = false; onremove(song) }}>
+            <button class="menu-item" role="menuitem" onclick={(e) => { e.stopPropagation(); closeMenu(); onremove(song) }}>
               <Trash2 size={14} strokeWidth={1.6} /> 从歌单移除
             </button>
           {/if}
@@ -329,6 +388,22 @@
     flex-direction: column;
     gap: 1px;
     animation: rise 0.18s var(--ease) both;
+  }
+  /* Not enough room below (player bar in the way): anchor above the button. */
+  .menu.up {
+    top: auto;
+    bottom: calc(100% + 6px);
+    animation: menu-drop 0.18s var(--ease) both;
+  }
+  @keyframes menu-drop {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
   .menu-rating {
     display: flex;

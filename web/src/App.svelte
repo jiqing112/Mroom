@@ -15,6 +15,7 @@
   import SettingsModal from './components/SettingsModal.svelte'
   import SearchOverlay from './components/SearchOverlay.svelte'
   import PlaylistPicker from './components/PlaylistPicker.svelte'
+  import RenameDialog from './components/RenameDialog.svelte'
   import Toast from './components/Toast.svelte'
   import Login from './pages/Login.svelte'
   import Home from './pages/Home.svelte'
@@ -204,6 +205,7 @@
   <SettingsModal />
   <SearchOverlay />
   <PlaylistPicker />
+  <RenameDialog />
   <Toast />
 {/if}
 
