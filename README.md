@@ -144,15 +144,23 @@ docker compose up -d
 
 ### 二进制
 
-从 Release 下载对应平台的 `mrome`，或自行编译：
+前端已内嵌在二进制里 —— 从 [Release](https://github.com/jiqing112/Mroom/releases) 下载对应平台的压缩包，解压后**单个 `mrome` 文件**（Windows 为 `mrome.exe`）放到任意目录直接启动：
+
+```bash
+tar xzf mrome-v1.2.0-linux-amd64.tar.gz
+./mrome-v1.2.0-linux-amd64/mrome
+```
+
+打开 `http://localhost:4533`。无需 Node、无需构建、无需其他文件；首次启动自动创建数据目录和管理员（默认 `admin / admin`，**请立刻修改**）。
+
+自行编译同样简单 —— 前端产物会在 `go build` 时通过 `go:embed` 嵌入二进制（注意先构建前端再编译）：
 
 ```bash
 cd web && npm install && npm run build && cd ..
-go build -o mrome ./cmd/mrome   # 前端产物在这一步被嵌入二进制
-./mrome
+go build -o mrome ./cmd/mrome
 ```
 
-前端在 `go build` 时通过 `go:embed` 直接嵌入二进制 —— 发布物是单个自包含文件，拷到哪里都能跑。开发场景下，若 `web_dir` 指向的目录存在（含 `index.html`），则优先从磁盘读取，改前端只需 `npm run build`，不必重启进程。
+开发场景下，若 `web_dir` 指向的目录存在（含 `index.html`），则优先从磁盘读取，改前端只需 `npm run build`，不必重启进程。
 
 ### 便携式布局（推荐）
 
