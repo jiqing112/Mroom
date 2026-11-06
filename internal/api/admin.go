@@ -2,10 +2,10 @@ package api
 
 import (
 	"context"
+	"io/fs"
 	"log"
 	"net/http"
-	"os"
-	"path/filepath"
+	"path"
 	"strings"
 
 	"mrome/internal/store"
@@ -141,27 +141,31 @@ func (s *Server) regenAPIKey(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"apiKey": key})
 }
 
+// spa serves the frontend from s.webFS: either a directory on disk (development
+// or an explicit web_dir override) or the assets embedded in the binary. Any
+// path that does not name an existing file falls back to index.html.
 func (s *Server) spa() http.Handler {
-	index := filepath.Join(s.Cfg.WebDir, "index.html")
-	fs := http.FileServer(http.Dir(s.Cfg.WebDir))
+	fsys := s.webFS
+	files := http.FileServerFS(fsys)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		clean := filepath.Clean("/" + r.URL.Path)
-		full := filepath.Join(s.Cfg.WebDir, filepath.FromSlash(clean))
-		if st, err := os.Stat(full); err == nil && !st.IsDir() {
-			if strings.HasPrefix(clean, "/assets/") {
-				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		clean := path.Clean("/" + r.URL.Path)
+		if clean != "/" {
+			if st, err := fs.Stat(fsys, strings.TrimPrefix(clean, "/")); err == nil && !st.IsDir() {
+				if strings.HasPrefix(clean, "/assets/") {
+					w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+				}
+				files.ServeHTTP(w, r)
+				return
 			}
-			fs.ServeHTTP(w, r)
-			return
 		}
-		if _, err := os.Stat(index); err != nil {
+		if _, err := fs.Stat(fsys, "index.html"); err != nil {
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 			w.WriteHeader(http.StatusServiceUnavailable)
 			_, _ = w.Write([]byte("前端尚未构建。请在 web/ 目录执行 npm install && npm run build，或用 docker compose 一键启动。"))
 			return
 		}
 		w.Header().Set("Cache-Control", "no-cache")
-		http.ServeFile(w, r, index)
+		http.ServeFileFS(w, r, fsys, "index.html")
 	})
 }
 

@@ -147,12 +147,12 @@ docker compose up -d
 从 Release 下载对应平台的 `mrome`，或自行编译：
 
 ```bash
-go build -o mrome ./cmd/mrome
 cd web && npm install && npm run build && cd ..
+go build -o mrome ./cmd/mrome   # 前端产物在这一步被嵌入二进制
 ./mrome
 ```
 
-`web/dist` 由 Go 直接以 `http.FileServer` 读取，改前端只需 `npm run build`，不必重启进程。
+前端在 `go build` 时通过 `go:embed` 直接嵌入二进制 —— 发布物是单个自包含文件，拷到哪里都能跑。开发场景下，若 `web_dir` 指向的目录存在（含 `index.html`），则优先从磁盘读取，改前端只需 `npm run build`，不必重启进程。
 
 ### 便携式布局（推荐）
 
@@ -160,9 +160,9 @@ cd web && npm install && npm run build && cd ..
 
 ```
 /opt/mrome/
-├── mrome            # 二进制
+├── mrome            # 二进制（已内嵌前端，单文件即可运行）
 ├── config.yaml
-├── web/dist/        # 前端产物
+├── web/dist/        # 可选：外置前端产物，存在则覆盖内嵌资源
 └── data/            # 启动后自动生成
     ├── mrome.db     # 数据库
     ├── music/       # 音乐目录
@@ -205,7 +205,7 @@ python scripts/make_demo_lyrics.py    # 按真实时长生成 .lrc
 | `db` | `MROME_DB` | `<data>/mrome.db` | SQLite 路径 |
 | `covers_dir` | `MROME_COVERS_DIR` | `<data>/covers` | 封面缓存 |
 | `uploads_dir` | `MROME_UPLOADS_DIR` | `<data>/uploads` | 分片暂存 |
-| `web_dir` | `MROME_WEB_DIR` | `./web/dist` | 前端产物 |
+| `web_dir` | `MROME_WEB_DIR` | `./web/dist` | 前端产物目录；目录存在（含 index.html）则覆盖内嵌资源，否则使用二进制内嵌前端 |
 | `admin_user` | `MROME_ADMIN_USER` | `admin` | 初始管理员 |
 | `admin_password` | `MROME_ADMIN_PASSWORD` | `admin` | 初始密码 |
 | `max_upload_mb` | `MROME_MAX_UPLOAD_MB` | `512` | 单文件上限 |

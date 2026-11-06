@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"log"
 	"net/http"
 	"strconv"
@@ -20,6 +21,7 @@ import (
 	"mrome/internal/scanner"
 	"mrome/internal/store"
 	"mrome/internal/util"
+	"mrome/web"
 )
 
 type Server struct {
@@ -40,14 +42,23 @@ type Server struct {
 	plexToken string
 	// loginGuard throttles password guessing per client IP.
 	loginGuard *ratelimit.Guard
+	// webFS is the frontend asset tree: a web_dir on disk when it holds a
+	// build, otherwise the assets embedded in the binary (see web.FS).
+	webFS fs.FS
 }
 
 // SetPlexToken records the token shown to users for the Plex-compatible endpoints.
 func (s *Server) SetPlexToken(t string) { s.plexToken = t }
 
 func New(st *store.Store, sc *scanner.Scanner, cfg config.Config) *Server {
+	webFS, embedded := web.FS(cfg.WebDir)
+	if embedded {
+		log.Printf("前端资源: 内嵌于二进制（可用 web_dir / MROME_WEB_DIR 指向构建产物覆盖）")
+	} else {
+		log.Printf("前端资源: 外置 %s", cfg.WebDir)
+	}
 	s := &Server{
-		Store: st, Scanner: sc, Cfg: cfg,
+		Store: st, Scanner: sc, Cfg: cfg, webFS: webFS,
 		secret:     []byte(st.GetSetting("secret", "mrome")),
 		loginGuard: ratelimit.New(8, 5*time.Minute),
 	}

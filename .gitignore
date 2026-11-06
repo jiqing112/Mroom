@@ -2,7 +2,8 @@
 /mrome
 /mrome.exe
 /mrome.linux
-web/dist/
+web/dist/*
+!web/dist/.gitkeep
 web/node_modules/
 
 # runtime data

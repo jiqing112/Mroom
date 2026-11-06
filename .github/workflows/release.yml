@@ -115,9 +115,8 @@ jobs:
         run: |
           set -euo pipefail
           NAME="mrome-${VERSION}-${GOOS_NAME}-${GOARCH_NAME}"
-          mkdir -p "pkg/${NAME}/web"
+          mkdir -p "pkg/${NAME}"
           cp "out/mrome${EXT}" "pkg/${NAME}/"
-          cp -r web/dist/. "pkg/${NAME}/web/dist/"
           cp config.yaml .env.example README.md "pkg/${NAME}/"
           cd pkg
           if [ "${GOOS_NAME}" = "windows" ]; then
@@ -191,5 +190,6 @@ jobs:
             ./mrome            # 打开 http://localhost:4533
             ```
 
-            压缩包里已经带上构建好的前端（`web/dist`），解压即可运行，无需 Node 环境。
+            前端已内嵌在二进制中，解压后单个 `mrome` 文件即可运行，无需 Node 环境。
+            如需外置前端（开发或覆盖），用 `MROME_WEB_DIR` 指向构建产物目录即可。
             数据与音乐默认落在 `./data`，可用 `MROME_DATA_DIR` / `MROME_MUSIC_DIR` 覆盖。

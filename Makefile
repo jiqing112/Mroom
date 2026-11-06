@@ -28,3 +28,4 @@ docker:         ## 一条命令启动
 
 clean:
 	rm -rf web/dist mrome.exe
+	@mkdir -p web/dist && touch web/dist/.gitkeep
