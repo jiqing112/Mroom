@@ -94,7 +94,7 @@ Mrome 是一个**单二进制**的私人音乐服务：把歌丢进目录（或�
 - 底部常驻玻璃拟态播放条，跨路由不中断；刷新后恢复队列、进度并自动续播
 - 旋转黑胶 + 极光背景：从当前封面提取主色，Canvas 驱动流体渐变
 - 全屏播放舞台：黑胶、歌词逐行高亮、评分、队列管理、移动端下滑收起
-- 三种播放模式（顺序 / 单曲循环 / 随机），切换时上方弹出提示
+- 三种播放模式（顺序 / 单曲循环 / 随机），图标即状态
 - 移动端两行布局：封面信息 + 完整控制键 + 可拖动进度条
 - LRC 歌词（同名 `.lrc` 或内嵌），点击歌词跳转
 - 亮 / 暗双主题；`⌘K` 全局搜索；空格 / ←→ / M / L 快捷键
@@ -209,10 +209,7 @@ python scripts/make_demo_lyrics.py    # 按真实时长生成 .lrc
 | --- | --- | --- | --- |
 | `addr` | `MROME_ADDR` | `:4533` | 监听地址 |
 | `music_dir` | `MROME_MUSIC_DIR` | `./data/music` | 音乐目录（相对路径锚定到二进制所在目录） |
-| `data_dir` | `MROME_DATA_DIR` | `./data` | 数据根目录（同上） |
-| `db` | `MROME_DB` | `<data>/mrome.db` | SQLite 路径 |
-| `covers_dir` | `MROME_COVERS_DIR` | `<data>/covers` | 封面缓存 |
-| `uploads_dir` | `MROME_UPLOADS_DIR` | `<data>/uploads` | 分片暂存 |
+| `data_dir` | `MROME_DATA_DIR` | `./data` | 数据根目录（同上）；数据库 `<data>/mrome.db`、封面 `<data>/covers`、上传暂存 `<data>/uploads`、回收站 `<data>/trash` 固定派生自它 |
 | `web_dir` | `MROME_WEB_DIR` | `./web/dist` | 前端产物目录；目录存在（含 index.html）则覆盖内嵌资源，否则使用二进制内嵌前端 |
 | `admin_user` | `MROME_ADMIN_USER` | `admin` | 初始管理员 |
 | `admin_password` | `MROME_ADMIN_PASSWORD` | `admin` | 初始密码 |
@@ -245,15 +242,15 @@ python scripts/make_demo_lyrics.py    # 按真实时长生成 .lrc
 │   │   ├── api.go                 # 路由、会话签名、中间件、免登录开关
 │   │   ├── library.go             # 浏览 / 搜索 / 最近播放 / 封面 / 音频流
 │   │   ├── cover.go               # 封面缩略图缩放与磁盘缓存
-│   │   ├── actions.go             # 歌单 / 收藏 / 评分 / scrobble
+│   │   ├── actions.go             # 歌单 / 收藏 / 评分 / scrobble（网页与 Navidrome 共用）
 │   │   ├── upload.go              # 分片上传与断点续传
-│   │   ├── ndcompat.go            # Navidrome 登录 / playqueue / scrobble
+│   │   ├── ndcompat.go            # Navidrome 登录 / playqueue
 │   │   └── admin.go               # 扫描、用户、设置、SPA 托管
 │   ├── subsonic/                  # Subsonic 1.16.1（JSON / XML / JSONP）
 │   ├── jellyfin/                  # Jellyfin + Emby（/emby 前缀复用）
 │   ├── audiostream/               # 群晖 Audio Station（/webapi）
 │   └── plex/                      # Plex 只读 XML 接口
-├── web/                           # Svelte 5 + Vite + Tailwind 4
+├── web/                           # Svelte 5 + Vite
 │   ├── src/lib/                   # api / router / player / colors / lyrics / perf
 │   ├── src/components/            # 播放条、舞台、设置、搜索、卡片、评分
 │   └── src/pages/                 # 登录、首页、歌曲、收藏、最近播放、专辑、艺术家、歌单、上传
