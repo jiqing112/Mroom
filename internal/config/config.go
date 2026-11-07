@@ -205,12 +205,14 @@ func Load() Config {
 	y := loadYAML(findConfigFile())
 	dataDir := anchor(pick(y, "MROME_DATA_DIR", "data_dir", "./data"))
 	c := Config{
-		Addr:              pick(y, "MROME_ADDR", "addr", ":4533"),
-		MusicDir:          anchor(pick(y, "MROME_MUSIC_DIR", "music_dir", filepath.Join(dataDir, "music"))),
-		DataDir:           dataDir,
-		DBPath:            anchor(pick(y, "MROME_DB", "db", filepath.Join(dataDir, "mrome.db"))),
-		CoversDir:         anchor(pick(y, "MROME_COVERS_DIR", "covers_dir", filepath.Join(dataDir, "covers"))),
-		UploadsDir:        anchor(pick(y, "MROME_UPLOADS_DIR", "uploads_dir", filepath.Join(dataDir, "uploads"))),
+		Addr:     pick(y, "MROME_ADDR", "addr", ":4533"),
+		MusicDir: anchor(pick(y, "MROME_MUSIC_DIR", "music_dir", filepath.Join(dataDir, "music"))),
+		DataDir:  dataDir,
+		// Database, covers and upload staging always derive from data_dir so a
+		// portable folder stays a single self-contained unit.
+		DBPath:            filepath.Join(dataDir, "mrome.db"),
+		CoversDir:         filepath.Join(dataDir, "covers"),
+		UploadsDir:        filepath.Join(dataDir, "uploads"),
 		WebDir:            anchor(pick(y, "MROME_WEB_DIR", "web_dir", "./web/dist")),
 		AdminUser:         pickRaw(y, "MROME_ADMIN_USER", "admin_user", "admin"),
 		AdminPassword:     pickRaw(y, "MROME_ADMIN_PASSWORD", "admin_password", "admin"),

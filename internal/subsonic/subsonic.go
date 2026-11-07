@@ -515,7 +515,3 @@ func jsonpCallback(name string) string {
 	}
 	return name
 }
-
-func timeNowUnix() int64 { return time.Now().Unix() }
-
-var _ = fmt.Sprintf

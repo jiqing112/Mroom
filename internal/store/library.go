@@ -1,7 +1,6 @@
 package store
 
 import (
-	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -731,16 +730,27 @@ func (s *Store) PathExists(path string) bool {
 	return n > 0
 }
 
-// Exists reports whether a path is already in the library.
-func (s *Store) Exists(path string) bool { return s.PathExists(path) }
-
-func (s *Store) SongByPath(path string) (string, error) {
-	var id string
-	err := s.db.QueryRow(`SELECT id FROM songs WHERE path=?`, filepath.ToSlash(path)).Scan(&id)
-	if err == sql.ErrNoRows {
-		return "", nil
+// CoverPath resolves artwork for an album id, a song id (via its album) or an
+// artist id, in that order, returning an empty path when nothing is on disk.
+func (s *Store) CoverPath(id string) (string, string) {
+	if p, m, err := s.AlbumCoverPath(id); err == nil && p != "" {
+		if _, e := os.Stat(p); e == nil {
+			return p, m
+		}
 	}
-	return id, err
+	if song, err := s.GetSong("", id); err == nil && song.AlbumID != "" {
+		if p, m, err := s.AlbumCoverPath(song.AlbumID); err == nil && p != "" {
+			if _, e := os.Stat(p); e == nil {
+				return p, m
+			}
+		}
+	}
+	if p, m, err := s.ArtistCover(id); err == nil && p != "" {
+		if _, e := os.Stat(p); e == nil {
+			return p, m
+		}
+	}
+	return "", ""
 }
 
 // SongPath returns the on-disk path of a library song, empty when unknown.
@@ -774,8 +784,8 @@ func (s *Store) SongIDByMD5(hash string) (string, bool) {
 // MD5DuplicateGroup is one set of byte-identical songs. The first entry is the
 // keeper (earliest imported); the rest are duplicates to remove.
 type MD5DuplicateGroup struct {
-	MD5  string
-	Keep string   // song id to keep
+	MD5   string
+	Keep  string   // song id to keep
 	Extra []string // song ids to remove
 }
 

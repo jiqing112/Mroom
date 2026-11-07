@@ -325,21 +325,4 @@ func like(q string) string {
 
 func now() int64 { return time.Now().Unix() }
 
-func placeholders(n int) string {
-	if n <= 0 {
-		return ""
-	}
-	return strings.TrimSuffix(strings.Repeat("?,", n), ",")
-}
-
-var (
-	errNoRows   = sql.ErrNoRows
-	ErrNotFound = fmt.Errorf("not found")
-)
-
-func wrap(err error, msg string) error {
-	if err == nil {
-		return nil
-	}
-	return fmt.Errorf("%s: %w", msg, err)
-}
+var ErrNotFound = fmt.Errorf("not found")

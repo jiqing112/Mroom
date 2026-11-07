@@ -1,7 +1,6 @@
 package store
 
 import (
-	"database/sql"
 	"strings"
 	"time"
 
@@ -186,15 +185,6 @@ func (s *Store) DeletePlaylist(id string) error {
 	}
 	_, err := s.db.Exec(`DELETE FROM playlists WHERE id=?`, id)
 	return err
-}
-
-func (s *Store) PlaylistOwner(id string) (string, error) {
-	var owner string
-	err := s.db.QueryRow(`SELECT owner_id FROM playlists WHERE id=?`, id).Scan(&owner)
-	if err == sql.ErrNoRows {
-		return "", ErrNotFound
-	}
-	return owner, err
 }
 
 // RemovePlaylistSong removes a single entry from a playlist.

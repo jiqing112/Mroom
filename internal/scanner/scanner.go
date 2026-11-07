@@ -247,11 +247,6 @@ func (s *Scanner) trashFile(p string) {
 	}
 }
 
-// ScanFile ingests a single uploaded file.
-func (s *Scanner) ScanFile(absPath string) (string, error) {
-	return s.ScanFileHashed(absPath, "")
-}
-
 // ScanFileHashed ingests a single file whose content hash is already known
 // (upload completion), saving a second read of the file.
 func (s *Scanner) ScanFileHashed(absPath, md5 string) (string, error) {

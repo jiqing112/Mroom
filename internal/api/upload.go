@@ -72,20 +72,20 @@ func (s *Server) uploadInit(w http.ResponseWriter, r *http.Request) {
 		Size         int64  `json:"size"`
 	}
 	if err := readJSON(r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "请求格式错误"})
+		util.WriteJSON(w, http.StatusBadRequest, map[string]any{"error": "请求格式错误"})
 		return
 	}
 	filename := filepath.Base(strings.TrimSpace(req.Filename))
 	if filename == "" || filename == "." {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "文件名无效"})
+		util.WriteJSON(w, http.StatusBadRequest, map[string]any{"error": "文件名无效"})
 		return
 	}
 	if !media.IsAudio(filename) {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "仅支持 mp3 / flac / m4a / wav / ogg 等音频格式"})
+		util.WriteJSON(w, http.StatusBadRequest, map[string]any{"error": "仅支持 mp3 / flac / m4a / wav / ogg 等音频格式"})
 		return
 	}
 	if req.Size > s.Cfg.MaxUploadMB<<20 {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": fmt.Sprintf("文件超过 %d MB 限制", s.Cfg.MaxUploadMB)})
+		util.WriteJSON(w, http.StatusBadRequest, map[string]any{"error": fmt.Sprintf("文件超过 %d MB 限制", s.Cfg.MaxUploadMB)})
 		return
 	}
 	rel := safeRelPath(req.RelativePath, filename)
@@ -95,29 +95,29 @@ func (s *Server) uploadInit(w http.ResponseWriter, r *http.Request) {
 	id := util.RandomHex(12)
 	meta := &uploadMeta{ID: id, Filename: filename, RelPath: rel, Size: req.Size, CreatedAt: time.Now().Unix()}
 	if err := os.MkdirAll(s.Cfg.UploadsDir, 0o755); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		util.WriteJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}
 	b, _ := json.Marshal(meta)
 	if err := os.WriteFile(s.uploadMetaPath(id), b, 0o644); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		util.WriteJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}
 	f, err := os.Create(s.uploadPartPath(id))
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		util.WriteJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}
 	f.Close()
 	s.uploads.Store(id, meta)
-	writeJSON(w, http.StatusOK, map[string]any{"id": id, "chunkSize": chunkSize, "received": 0})
+	util.WriteJSON(w, http.StatusOK, map[string]any{"id": id, "chunkSize": chunkSize, "received": 0})
 }
 
 func (s *Server) uploadChunk(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	meta, err := s.loadUpload(id)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]any{"error": "上传任务不存在"})
+		util.WriteJSON(w, http.StatusNotFound, map[string]any{"error": "上传任务不存在"})
 		return
 	}
 	offset := int64(qInt(r, "offset", -1))
@@ -128,7 +128,7 @@ func (s *Server) uploadChunk(w http.ResponseWriter, r *http.Request) {
 
 	part, err := os.OpenFile(partPath, os.O_WRONLY|os.O_CREATE, 0o644)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		util.WriteJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}
 	defer part.Close()
@@ -136,18 +136,18 @@ func (s *Server) uploadChunk(w http.ResponseWriter, r *http.Request) {
 	if offset >= 0 && offset != cur {
 		// The client resumes from a different offset: trust the server's file
 		// length and ask the client to resync.
-		writeJSON(w, http.StatusConflict, map[string]any{"error": "offset 不匹配", "received": cur})
+		util.WriteJSON(w, http.StatusConflict, map[string]any{"error": "offset 不匹配", "received": cur})
 		return
 	}
 	written, err := io.Copy(part, io.LimitReader(r.Body, chunkSize+(1<<20)))
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		util.WriteJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}
 	received := cur + written
 	if limit := s.Cfg.MaxUploadMB << 20; received > limit {
 		_ = part.Truncate(cur)
-		writeJSON(w, http.StatusRequestEntityTooLarge, map[string]any{
+		util.WriteJSON(w, http.StatusRequestEntityTooLarge, map[string]any{
 			"error": fmt.Sprintf("文件超过 %d MB 限制", s.Cfg.MaxUploadMB), "received": cur,
 		})
 		return
@@ -156,21 +156,21 @@ func (s *Server) uploadChunk(w http.ResponseWriter, r *http.Request) {
 		_ = part.Truncate(meta.Size)
 		received = meta.Size
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"received": received, "chunkSize": chunkSize})
+	util.WriteJSON(w, http.StatusOK, map[string]any{"received": received, "chunkSize": chunkSize})
 }
 
 func (s *Server) uploadStatus(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	meta, err := s.loadUpload(id)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]any{"error": "上传任务不存在"})
+		util.WriteJSON(w, http.StatusNotFound, map[string]any{"error": "上传任务不存在"})
 		return
 	}
 	var received int64
 	if st, err := os.Stat(s.uploadPartPath(id)); err == nil {
 		received = st.Size()
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
+	util.WriteJSON(w, http.StatusOK, map[string]any{
 		"id": id, "filename": meta.Filename, "size": meta.Size, "received": received, "chunkSize": chunkSize,
 	})
 }
@@ -179,17 +179,17 @@ func (s *Server) uploadComplete(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	meta, err := s.loadUpload(id)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]any{"error": "上传任务不存在"})
+		util.WriteJSON(w, http.StatusNotFound, map[string]any{"error": "上传任务不存在"})
 		return
 	}
 	partPath := s.uploadPartPath(id)
 	st, err := os.Stat(partPath)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "尚未收到文件数据"})
+		util.WriteJSON(w, http.StatusBadRequest, map[string]any{"error": "尚未收到文件数据"})
 		return
 	}
 	if meta.Size > 0 && st.Size() < meta.Size {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "文件尚未上传完成", "received": st.Size()})
+		util.WriteJSON(w, http.StatusBadRequest, map[string]any{"error": "文件尚未上传完成", "received": st.Size()})
 		return
 	}
 
@@ -199,14 +199,14 @@ func (s *Server) uploadComplete(w http.ResponseWriter, r *http.Request) {
 	// hash is reused for ingestion below.
 	hash, err := util.MD5File(partPath)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		util.WriteJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}
 	if existing, found := s.Store.SongIDByMD5(hash); found {
 		_ = os.Remove(partPath)
 		_ = os.Remove(s.uploadMetaPath(id))
 		s.uploads.Delete(id)
-		writeJSON(w, http.StatusOK, map[string]any{
+		util.WriteJSON(w, http.StatusOK, map[string]any{
 			"ok": true, "duplicate": true, "songId": existing, "path": meta.RelPath,
 		})
 		return
@@ -217,18 +217,18 @@ func (s *Server) uploadComplete(w http.ResponseWriter, r *http.Request) {
 	absMusic, _ := filepath.Abs(s.Cfg.MusicDir)
 	absTarget, _ := filepath.Abs(target)
 	if !strings.HasPrefix(absTarget, absMusic+string(os.PathSeparator)) {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "非法的目标路径"})
+		util.WriteJSON(w, http.StatusBadRequest, map[string]any{"error": "非法的目标路径"})
 		return
 	}
 	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		util.WriteJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}
 	target = util.UniquePath(target)
 	if err := os.Rename(partPath, target); err != nil {
 		// Cross-device fallback.
 		if err := copyFile(partPath, target); err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+			util.WriteJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 			return
 		}
 		_ = os.Remove(partPath)
@@ -241,7 +241,7 @@ func (s *Server) uploadComplete(w http.ResponseWriter, r *http.Request) {
 	if scanErr != nil {
 		resp["warning"] = scanErr.Error()
 	}
-	writeJSON(w, http.StatusOK, resp)
+	util.WriteJSON(w, http.StatusOK, resp)
 }
 
 func (s *Server) uploadAbort(w http.ResponseWriter, r *http.Request) {
@@ -249,7 +249,7 @@ func (s *Server) uploadAbort(w http.ResponseWriter, r *http.Request) {
 	s.uploads.Delete(id)
 	_ = os.Remove(s.uploadPartPath(id))
 	_ = os.Remove(s.uploadMetaPath(id))
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	util.WriteJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 func copyFile(src, dst string) error {

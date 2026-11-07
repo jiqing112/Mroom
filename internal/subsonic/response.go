@@ -29,15 +29,6 @@ func (o *Obj) Set(k string, v any) *Obj {
 	return o
 }
 
-func (o *Obj) SetIf(k string, v any, cond bool) *Obj {
-	if cond {
-		o.Set(k, v)
-	}
-	return o
-}
-
-func (o *Obj) Get(k string) any { return o.vals[k] }
-
 // Append adds an item to an array-valued field, creating it on first use.
 func (o *Obj) Append(k string, v any) *Obj {
 	if o.vals == nil {
@@ -59,8 +50,6 @@ func (o *Obj) Append(k string, v any) *Obj {
 	}
 	return o
 }
-
-func (o *Obj) Len() int { return len(o.keys) }
 
 // namedList is an array whose JSON form is a plain array but whose XML form
 // nests each item under a distinct element name. OpenSubsonic uses this for

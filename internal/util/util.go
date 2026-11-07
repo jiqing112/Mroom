@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -45,9 +46,67 @@ func QueryInt(r *http.Request, key string, def int) int {
 	return n
 }
 
-func QueryBool(r *http.Request, key string) bool {
-	v := strings.ToLower(strings.TrimSpace(r.URL.Query().Get(key)))
-	return v == "true" || v == "1" || v == "yes"
+// WriteJSON encodes v as a JSON response body.
+func WriteJSON(w http.ResponseWriter, code int, v any) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(code)
+	enc := json.NewEncoder(w)
+	enc.SetEscapeHTML(false)
+	_ = enc.Encode(v)
+}
+
+// ServeMedia streams an audio file with Range / HEAD semantics. attachment adds
+// a Content-Disposition attachment header (Subsonic download).
+func ServeMedia(w http.ResponseWriter, r *http.Request, path, contentType string, attachment bool) error {
+	f, st, err := openStat(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Accept-Ranges", "bytes")
+	w.Header().Set("Cache-Control", "no-cache")
+	if attachment {
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filepath.Base(path)))
+	}
+	http.ServeContent(w, r, filepath.Base(path), st.ModTime(), f)
+	return nil
+}
+
+// ServeImage streams artwork with long-lived cache headers. etag is a prefix
+// combined with the file's modification time so changed art busts the cache.
+func ServeImage(w http.ResponseWriter, r *http.Request, path, contentType, etag string) error {
+	f, st, err := openStat(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if contentType == "" {
+		contentType = "image/jpeg"
+	}
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Cache-Control", "public, max-age=604800")
+	if etag != "" {
+		w.Header().Set("ETag", `"`+etag+`-`+strconv.FormatInt(st.ModTime().Unix(), 10)+`"`)
+	}
+	http.ServeContent(w, r, filepath.Base(path), st.ModTime(), f)
+	return nil
+}
+
+func openStat(path string) (*os.File, os.FileInfo, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, nil, err
+	}
+	st, err := f.Stat()
+	if err != nil {
+		f.Close()
+		return nil, nil, err
+	}
+	return f, st, nil
 }
 
 // CleanName normalises whitespace in metadata strings.

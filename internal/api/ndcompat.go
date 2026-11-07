@@ -27,25 +27,25 @@ type ndLoginReq struct {
 func (s *Server) ndLogin(w http.ResponseWriter, r *http.Request) {
 	key := util.ClientKey(r)
 	if s.loginGuard.Blocked(key) {
-		writeJSON(w, http.StatusTooManyRequests, map[string]any{"error": "尝试次数过多，请 5 分钟后再试"})
+		util.WriteJSON(w, http.StatusTooManyRequests, map[string]any{"error": "尝试次数过多，请 5 分钟后再试"})
 		return
 	}
 	var req ndLoginReq
 	if err := readJSON(r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "请求格式错误"})
+		util.WriteJSON(w, http.StatusBadRequest, map[string]any{"error": "请求格式错误"})
 		return
 	}
 	u, err := s.Store.Authenticate(strings.TrimSpace(req.Username), req.Password)
 	if err != nil {
 		s.loginGuard.Fail(key)
 		time.Sleep(350 * time.Millisecond)
-		writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "用户名或密码错误"})
+		util.WriteJSON(w, http.StatusUnauthorized, map[string]any{"error": "用户名或密码错误"})
 		return
 	}
 	s.loginGuard.Reset(key)
 	salt := util.RandomHex(8)
 	sum := md5.Sum([]byte(req.Password + salt))
-	writeJSON(w, http.StatusOK, map[string]any{
+	util.WriteJSON(w, http.StatusOK, map[string]any{
 		"id":                u.ID,
 		"username":          u.Username,
 		"name":              u.Username,
@@ -61,7 +61,7 @@ func (s *Server) ndLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) ndLogout(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	util.WriteJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 // ndKeepalive keeps clients that poll it from logging connection errors.
@@ -76,11 +76,11 @@ func (s *Server) ndKeepalive(w http.ResponseWriter, r *http.Request) {
 // ignored — enough for clients that poll it without treating it as an error.
 func (s *Server) ndPlayQueue(w http.ResponseWriter, r *http.Request) {
 	if _, ok := s.ndCurrentUser(r); !ok {
-		writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "未登录"})
+		util.WriteJSON(w, http.StatusUnauthorized, map[string]any{"error": "未登录"})
 		return
 	}
 	if r.Method == http.MethodGet {
-		writeJSON(w, http.StatusOK, map[string]any{
+		util.WriteJSON(w, http.StatusOK, map[string]any{
 			"id":        "",
 			"current":   0,
 			"position":  0,
@@ -90,29 +90,7 @@ func (s *Server) ndPlayQueue(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{})
-}
-
-// ndScrobble records a finished play so client-side listening stats land in the
-// same annotations table the web player uses.
-func (s *Server) ndScrobble(w http.ResponseWriter, r *http.Request) {
-	uid, ok := s.ndCurrentUser(r)
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "未登录"})
-		return
-	}
-	var req struct {
-		ID         string `json:"id"`
-		Submission bool   `json:"submission"`
-	}
-	_ = readJSON(r, &req)
-	if req.Submission && req.ID != "" {
-		if err := s.Store.Scrobble(uid, req.ID, time.Now().Unix()); err != nil {
-			writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
-			return
-		}
-	}
-	writeJSON(w, http.StatusOK, map[string]any{})
+	util.WriteJSON(w, http.StatusOK, map[string]any{})
 }
 
 // ndCurrentUser resolves the JWT that a Navidrome-mode client presents.

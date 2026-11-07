@@ -71,18 +71,3 @@ func (g *Guard) Reset(key string) {
 	defer g.mu.Unlock()
 	delete(g.items, key)
 }
-
-// RetryAfter reports how long the key stays locked (zero when not locked).
-func (g *Guard) RetryAfter(key string) time.Duration {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	e, ok := g.items[key]
-	if !ok || e.fails < g.max {
-		return 0
-	}
-	d := time.Until(e.until)
-	if d < 0 {
-		return 0
-	}
-	return d
-}

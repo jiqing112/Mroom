@@ -14,12 +14,9 @@ addr: ":4533"
 web_dir: "./web/dist"
 
 # 音乐库与数据目录
+# 数据库、封面、上传暂存与回收站固定在 <data_dir> 之下，随 data_dir 一起走。
 data_dir: "./data"
 music_dir: "./data/music"
-# db: "./data/mrome.db"            # 默认 <data_dir>/mrome.db
-# covers_dir: "./data/covers"      # 默认 <data_dir>/covers
-# uploads_dir: "./data/uploads"    # 默认 <data_dir>/uploads
-# 回收站固定为 <data_dir>/trash
 
 # 首次启动时创建管理员（仅当库中还没有管理员）。
 # 两项都留空 = 默认开启免登录访客模式：打开网页直接进入首页，

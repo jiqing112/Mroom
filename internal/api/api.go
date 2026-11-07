@@ -116,7 +116,6 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/keepalive", s.ndKeepalive)
 	mux.HandleFunc("/api/playqueue", s.ndPlayQueue)
 	mux.HandleFunc("/api/playqueue/", s.ndPlayQueue)
-	mux.HandleFunc("/api/scrobble", s.ndScrobble)
 
 	mux.Handle("GET /api/home", s.auth(s.home))
 	mux.Handle("GET /api/songs", s.auth(s.listSongs))
@@ -143,7 +142,7 @@ func (s *Server) Handler() http.Handler {
 
 	mux.Handle("POST /api/star", s.auth(s.setStar))
 	mux.Handle("POST /api/rating", s.auth(s.setRating))
-	mux.Handle("POST /api/scrobble", s.auth(s.scrobble))
+	mux.HandleFunc("POST /api/scrobble", s.scrobble)
 
 	mux.Handle("GET /api/stream/{id}", s.auth(s.stream))
 	mux.Handle("GET /api/cover/{id}", s.auth(s.cover))
@@ -166,7 +165,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /api/admin/users/{id}/apikey", s.admin(s.regenAPIKey))
 
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusNotFound, map[string]any{"error": "接口不存在"})
+		util.WriteJSON(w, http.StatusNotFound, map[string]any{"error": "接口不存在"})
 	})
 
 	mux.Handle("/", s.spa())
@@ -181,7 +180,7 @@ func (s *Server) common(next http.Handler) http.Handler {
 		defer func() {
 			if rec := recover(); rec != nil {
 				log.Printf("panic: %v", rec)
-				writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "服务器内部错误"})
+				util.WriteJSON(w, http.StatusInternalServerError, map[string]any{"error": "服务器内部错误"})
 			}
 		}()
 		next.ServeHTTP(w, r)
@@ -264,7 +263,7 @@ func (s *Server) auth(next http.HandlerFunc) http.Handler {
 			log.Printf("访客登录失败: %v", gerr)
 		}
 		if err != nil {
-			writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "请先登录"})
+			util.WriteJSON(w, http.StatusUnauthorized, map[string]any{"error": "请先登录"})
 			return
 		}
 		u.Guest = guestOn && s.isGuestID(u.ID)
@@ -305,7 +304,7 @@ func (s *Server) admin(next http.HandlerFunc) http.Handler {
 	return s.auth(func(w http.ResponseWriter, r *http.Request) {
 		u := currentUser(r)
 		if u == nil || !u.IsAdmin {
-			writeJSON(w, http.StatusForbidden, map[string]any{"error": "需要管理员权限"})
+			util.WriteJSON(w, http.StatusForbidden, map[string]any{"error": "需要管理员权限"})
 			return
 		}
 		next(w, r)
@@ -325,31 +324,31 @@ type loginReq struct {
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	key := util.ClientKey(r)
 	if s.loginGuard.Blocked(key) {
-		writeJSON(w, http.StatusTooManyRequests, map[string]any{"error": "尝试次数过多，请 5 分钟后再试"})
+		util.WriteJSON(w, http.StatusTooManyRequests, map[string]any{"error": "尝试次数过多，请 5 分钟后再试"})
 		return
 	}
 	var req loginReq
 	if err := readJSON(r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "请求格式错误"})
+		util.WriteJSON(w, http.StatusBadRequest, map[string]any{"error": "请求格式错误"})
 		return
 	}
 	u, err := s.Store.Authenticate(strings.TrimSpace(req.Username), req.Password)
 	if err != nil {
 		s.loginGuard.Fail(key)
 		time.Sleep(350 * time.Millisecond)
-		writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "用户名或密码错误"})
+		util.WriteJSON(w, http.StatusUnauthorized, map[string]any{"error": "用户名或密码错误"})
 		return
 	}
 	s.loginGuard.Reset(key)
 	s.setSessionCookie(w, r, u)
-	writeJSON(w, http.StatusOK, map[string]any{"user": u})
+	util.WriteJSON(w, http.StatusOK, map[string]any{"user": u})
 }
 
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name: "mrome_session", Value: "", Path: "/", MaxAge: -1, HttpOnly: true, Secure: isHTTPS(r),
 	})
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	util.WriteJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 // isHTTPS reports whether the client connection is TLS, either directly or via
@@ -360,7 +359,7 @@ func isHTTPS(r *http.Request) bool {
 
 func (s *Server) me(w http.ResponseWriter, r *http.Request) {
 	admins, _ := s.Store.CountAdmins()
-	writeJSON(w, http.StatusOK, map[string]any{
+	util.WriteJSON(w, http.StatusOK, map[string]any{
 		"user":      currentUser(r),
 		"app":       s.appInfo(),
 		"guestMode": s.guestEnabled(),
@@ -370,7 +369,7 @@ func (s *Server) me(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) meta(w http.ResponseWriter, r *http.Request) {
 	users, _ := s.Store.CountUsers()
-	writeJSON(w, http.StatusOK, map[string]any{
+	util.WriteJSON(w, http.StatusOK, map[string]any{
 		"app":         s.appInfo(),
 		"needsSetup":  users == 0,
 		"subsonicApi": "/rest",
@@ -387,14 +386,6 @@ func (s *Server) appInfo() map[string]any {
 }
 
 // ---------------------------------------------------------------- helpers
-
-func writeJSON(w http.ResponseWriter, code int, v any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(code)
-	enc := json.NewEncoder(w)
-	enc.SetEscapeHTML(false)
-	_ = enc.Encode(v)
-}
 
 func readJSON(r *http.Request, v any) error {
 	defer r.Body.Close()

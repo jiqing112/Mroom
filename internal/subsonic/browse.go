@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 	"strconv"
-	"strings"
+	"time"
 	"unicode"
 
 	"mrome/internal/store"
@@ -405,8 +405,4 @@ func (h *Handler) getAlbumInfo(r *http.Request, u *store.User, method string) (*
 		Set("largeImageUrl", "")), nil
 }
 
-func nowUnix() int64 { return timeNow() }
-
-var _ = strings.TrimSpace
-
-func timeNow() int64 { return timeNowUnix() }
+func nowUnix() int64 { return time.Now().Unix() }

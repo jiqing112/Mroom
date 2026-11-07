@@ -12,8 +12,6 @@ import (
 	"fmt"
 	"html"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -251,25 +249,9 @@ func (s *Server) part(w http.ResponseWriter, r *http.Request, rest string) {
 		http.Error(w, "歌曲不存在", http.StatusNotFound)
 		return
 	}
-	file, err := os.Open(f.Path)
-	if err != nil {
+	if err := util.ServeMedia(w, r, f.Path, f.ContentType, false); err != nil {
 		http.Error(w, "音频文件不可用", http.StatusNotFound)
-		return
 	}
-	defer file.Close()
-	st, err := file.Stat()
-	if err != nil {
-		http.Error(w, "音频文件不可用", http.StatusNotFound)
-		return
-	}
-	ct := f.ContentType
-	if ct == "" {
-		ct = "application/octet-stream"
-	}
-	w.Header().Set("Content-Type", ct)
-	w.Header().Set("Accept-Ranges", "bytes")
-	w.Header().Set("Cache-Control", "no-cache")
-	http.ServeContent(w, r, filepath.Base(f.Path), st.ModTime(), file)
 }
 
 func (s *Server) thumb(w http.ResponseWriter, r *http.Request, id string) {
@@ -278,23 +260,9 @@ func (s *Server) thumb(w http.ResponseWriter, r *http.Request, id string) {
 		http.Error(w, "无封面", http.StatusNotFound)
 		return
 	}
-	file, err := os.Open(path)
-	if err != nil {
+	if err := util.ServeImage(w, r, path, mime, ""); err != nil {
 		http.Error(w, "无封面", http.StatusNotFound)
-		return
 	}
-	defer file.Close()
-	st, err := file.Stat()
-	if err != nil {
-		http.Error(w, "无封面", http.StatusNotFound)
-		return
-	}
-	if mime == "" {
-		mime = "image/jpeg"
-	}
-	w.Header().Set("Content-Type", mime)
-	w.Header().Set("Cache-Control", "public, max-age=604800")
-	http.ServeContent(w, r, filepath.Base(path), st.ModTime(), file)
 }
 
 // transcode serves the cover referenced by ?url=/library/metadata/<id>/thumb
@@ -314,24 +282,7 @@ func (s *Server) transcode(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) resolveCover(id string) (string, string) {
-	if p, m, err := s.Store.AlbumCoverPath(id); err == nil && p != "" {
-		if _, e := os.Stat(p); e == nil {
-			return p, m
-		}
-	}
-	if song, err := s.Store.GetSong("", id); err == nil && song.AlbumID != "" {
-		if p, m, err := s.Store.AlbumCoverPath(song.AlbumID); err == nil && p != "" {
-			if _, e := os.Stat(p); e == nil {
-				return p, m
-			}
-		}
-	}
-	if p, m, err := s.Store.ArtistCover(id); err == nil && p != "" {
-		if _, e := os.Stat(p); e == nil {
-			return p, m
-		}
-	}
-	return "", ""
+	return s.Store.CoverPath(id)
 }
 
 // ------------------------------------------------------------------ xml

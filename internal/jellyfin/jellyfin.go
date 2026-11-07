@@ -8,7 +8,6 @@ package jellyfin
 import (
 	"encoding/json"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -119,17 +118,17 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case strings.HasPrefix(path, "/Sessions/Playing"):
 		s.playing(w, r)
 	case path == "/Sessions":
-		writeJSON(w, 200, map[string]any{})
+		util.WriteJSON(w, 200, map[string]any{})
 	case strings.HasPrefix(path, "/DisplayPreferences/"):
-		writeJSON(w, 200, map[string]any{"CustomPrefs": map[string]any{}})
+		util.WriteJSON(w, 200, map[string]any{"CustomPrefs": map[string]any{}})
 	case path == "/Branding/Configuration":
-		writeJSON(w, 200, map[string]any{"SplashscreenEnabled": false, "LoginDisclaimer": ""})
+		util.WriteJSON(w, 200, map[string]any{"SplashscreenEnabled": false, "LoginDisclaimer": ""})
 	case path == "/Plugins":
-		writeJSON(w, 200, []any{})
+		util.WriteJSON(w, 200, []any{})
 	case strings.HasPrefix(path, "/QuickConnect/"):
-		writeJSON(w, 404, map[string]any{"error": "QuickConnect 未启用"})
+		util.WriteJSON(w, 404, map[string]any{"error": "QuickConnect 未启用"})
 	default:
-		writeJSON(w, http.StatusNotFound, map[string]any{"error": "接口不存在"})
+		util.WriteJSON(w, http.StatusNotFound, map[string]any{"error": "接口不存在"})
 	}
 }
 
@@ -174,7 +173,7 @@ func (s *Server) authenticate(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"Password"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, 400, map[string]any{"error": "请求格式错误"})
+		util.WriteJSON(w, 400, map[string]any{"error": "请求格式错误"})
 		return
 	}
 	if req.Pw == "" {
@@ -183,11 +182,11 @@ func (s *Server) authenticate(w http.ResponseWriter, r *http.Request) {
 	u, err := s.Store.Authenticate(strings.TrimSpace(req.Username), req.Pw)
 	if err != nil {
 		time.Sleep(300 * time.Millisecond)
-		writeJSON(w, 401, map[string]any{"error": "用户名或密码错误"})
+		util.WriteJSON(w, 401, map[string]any{"error": "用户名或密码错误"})
 		return
 	}
 	token := util.SignJWT(s.secret, u.ID, 30*24*time.Hour)
-	writeJSON(w, 200, map[string]any{
+	util.WriteJSON(w, 200, map[string]any{
 		"User":        s.userDto(u),
 		"SessionInfo": map[string]any{"Id": util.RandomHex(16), "UserId": u.ID, "UserName": u.Username},
 		"AccessToken": token,
@@ -220,10 +219,10 @@ func (s *Server) userDto(u *store.User) map[string]any {
 func (s *Server) me(w http.ResponseWriter, r *http.Request) {
 	u, ok := s.tokenUser(r)
 	if !ok {
-		writeJSON(w, 401, map[string]any{"error": "未登录"})
+		util.WriteJSON(w, 401, map[string]any{"error": "未登录"})
 		return
 	}
-	writeJSON(w, 200, s.userDto(u))
+	util.WriteJSON(w, 200, s.userDto(u))
 }
 
 func (s *Server) listUsers(w http.ResponseWriter, r *http.Request) {
@@ -232,7 +231,7 @@ func (s *Server) listUsers(w http.ResponseWriter, r *http.Request) {
 	for i := range users {
 		out = append(out, s.userDto(&users[i]))
 	}
-	writeJSON(w, 200, out)
+	util.WriteJSON(w, 200, out)
 }
 
 // ------------------------------------------------------------------ items
@@ -240,7 +239,7 @@ func (s *Server) listUsers(w http.ResponseWriter, r *http.Request) {
 func (s *Server) items(w http.ResponseWriter, r *http.Request) {
 	u, ok := s.tokenUser(r)
 	if !ok {
-		writeJSON(w, 401, map[string]any{"error": "未登录"})
+		util.WriteJSON(w, 401, map[string]any{"error": "未登录"})
 		return
 	}
 	q := r.URL.Query()
@@ -274,7 +273,7 @@ func (s *Server) items(w http.ResponseWriter, r *http.Request) {
 			for _, song := range a.Songs {
 				items = append(items, s.songItem(song))
 			}
-			writeJSON(w, 200, map[string]any{"Items": items, "TotalRecordCount": len(items), "StartIndex": 0})
+			util.WriteJSON(w, 200, map[string]any{"Items": items, "TotalRecordCount": len(items), "StartIndex": 0})
 			return
 		}
 	}
@@ -309,7 +308,7 @@ func (s *Server) items(w http.ResponseWriter, r *http.Request) {
 	if items == nil {
 		items = []any{}
 	}
-	writeJSON(w, 200, map[string]any{"Items": items, "TotalRecordCount": total, "StartIndex": start})
+	util.WriteJSON(w, 200, map[string]any{"Items": items, "TotalRecordCount": total, "StartIndex": start})
 }
 
 func (s *Server) sliceArtists(list []store.Artist, start, limit int) []any {
@@ -323,7 +322,7 @@ func (s *Server) sliceArtists(list []store.Artist, start, limit int) []any {
 func (s *Server) itemPath(w http.ResponseWriter, r *http.Request, rest string) {
 	u, ok := s.tokenUser(r)
 	if !ok {
-		writeJSON(w, 401, map[string]any{"error": "未登录"})
+		util.WriteJSON(w, 401, map[string]any{"error": "未登录"})
 		return
 	}
 	parts := strings.Split(rest, "/")
@@ -333,29 +332,29 @@ func (s *Server) itemPath(w http.ResponseWriter, r *http.Request, rest string) {
 		return
 	}
 	if len(parts) >= 2 && strings.EqualFold(parts[1], "Similar") {
-		writeJSON(w, 200, map[string]any{"Items": []any{}, "TotalRecordCount": 0})
+		util.WriteJSON(w, 200, map[string]any{"Items": []any{}, "TotalRecordCount": 0})
 		return
 	}
 	// Resolve the id across the three item kinds; song ids win.
 	if song, err := s.Store.GetSong(u.ID, id); err == nil {
-		writeJSON(w, 200, s.songItem(*song))
+		util.WriteJSON(w, 200, s.songItem(*song))
 		return
 	}
 	if album, err := s.Store.GetAlbum(u.ID, id, false); err == nil {
-		writeJSON(w, 200, s.albumItem(*album))
+		util.WriteJSON(w, 200, s.albumItem(*album))
 		return
 	}
 	if artist, err := s.Store.GetArtist(u.ID, id); err == nil {
-		writeJSON(w, 200, s.artistItem(*artist))
+		util.WriteJSON(w, 200, s.artistItem(*artist))
 		return
 	}
-	writeJSON(w, 404, map[string]any{"error": "条目不存在"})
+	util.WriteJSON(w, 404, map[string]any{"error": "条目不存在"})
 }
 
 func (s *Server) artists(w http.ResponseWriter, r *http.Request) {
 	u, ok := s.tokenUser(r)
 	if !ok {
-		writeJSON(w, 401, map[string]any{"error": "未登录"})
+		util.WriteJSON(w, 401, map[string]any{"error": "未登录"})
 		return
 	}
 	artists, _ := s.Store.ListArtists(u.ID)
@@ -363,27 +362,27 @@ func (s *Server) artists(w http.ResponseWriter, r *http.Request) {
 	for _, a := range artists {
 		items = append(items, s.artistItem(a))
 	}
-	writeJSON(w, 200, map[string]any{"Items": items, "TotalRecordCount": len(items)})
+	util.WriteJSON(w, 200, map[string]any{"Items": items, "TotalRecordCount": len(items)})
 }
 
 func (s *Server) artist(w http.ResponseWriter, r *http.Request, rest string) {
 	u, ok := s.tokenUser(r)
 	if !ok {
-		writeJSON(w, 401, map[string]any{"error": "未登录"})
+		util.WriteJSON(w, 401, map[string]any{"error": "未登录"})
 		return
 	}
 	id := normID(strings.Split(rest, "/")[0])
 	artist, err := s.Store.GetArtist(u.ID, id)
 	if err != nil {
-		writeJSON(w, 404, map[string]any{"error": "艺术家不存在"})
+		util.WriteJSON(w, 404, map[string]any{"error": "艺术家不存在"})
 		return
 	}
-	writeJSON(w, 200, s.artistItem(*artist))
+	util.WriteJSON(w, 200, s.artistItem(*artist))
 }
 
 func (s *Server) genres(w http.ResponseWriter, r *http.Request) {
 	if _, ok := s.tokenUser(r); !ok {
-		writeJSON(w, 401, map[string]any{"error": "未登录"})
+		util.WriteJSON(w, 401, map[string]any{"error": "未登录"})
 		return
 	}
 	genres, _ := s.Store.Genres()
@@ -395,12 +394,12 @@ func (s *Server) genres(w http.ResponseWriter, r *http.Request) {
 			"Type": "MusicGenre",
 		})
 	}
-	writeJSON(w, 200, map[string]any{"Items": items, "TotalRecordCount": len(items)})
+	util.WriteJSON(w, 200, map[string]any{"Items": items, "TotalRecordCount": len(items)})
 }
 
 func (s *Server) userViews(w http.ResponseWriter, r *http.Request) {
 	if _, ok := s.tokenUser(r); !ok {
-		writeJSON(w, 401, map[string]any{"error": "未登录"})
+		util.WriteJSON(w, 401, map[string]any{"error": "未登录"})
 		return
 	}
 	items := []any{
@@ -410,13 +409,13 @@ func (s *Server) userViews(w http.ResponseWriter, r *http.Request) {
 			"ImageTags": map[string]any{}, "ServerId": s.serverID,
 		},
 	}
-	writeJSON(w, 200, map[string]any{"Items": items, "TotalRecordCount": 1})
+	util.WriteJSON(w, 200, map[string]any{"Items": items, "TotalRecordCount": 1})
 }
 
 func (s *Server) playing(w http.ResponseWriter, r *http.Request) {
 	u, ok := s.tokenUser(r)
 	if !ok {
-		writeJSON(w, 401, map[string]any{"error": "未登录"})
+		util.WriteJSON(w, 401, map[string]any{"error": "未登录"})
 		return
 	}
 	if r.Method == http.MethodPost {
@@ -439,7 +438,7 @@ func (s *Server) playing(w http.ResponseWriter, r *http.Request) {
 func (s *Server) favorite(w http.ResponseWriter, r *http.Request, id string) {
 	u, ok := s.tokenUser(r)
 	if !ok {
-		writeJSON(w, 401, map[string]any{"error": "未登录"})
+		util.WriteJSON(w, 401, map[string]any{"error": "未登录"})
 		return
 	}
 	star := r.Method == http.MethodPost || r.Method == http.MethodPut
@@ -450,49 +449,49 @@ func (s *Server) favorite(w http.ResponseWriter, r *http.Request, id string) {
 		} else if _, err := s.Store.GetArtist(u.ID, id); err == nil {
 			kind = "artist"
 		} else {
-			writeJSON(w, 404, map[string]any{"error": "条目不存在"})
+			util.WriteJSON(w, 404, map[string]any{"error": "条目不存在"})
 			return
 		}
 	}
 	if err := s.Store.SetStar(u.ID, id, kind, star); err != nil {
-		writeJSON(w, 400, map[string]any{"error": err.Error()})
+		util.WriteJSON(w, 400, map[string]any{"error": err.Error()})
 		return
 	}
-	writeJSON(w, 200, map[string]any{"IsFavorite": star})
+	util.WriteJSON(w, 200, map[string]any{"IsFavorite": star})
 }
 
 // played marks an item as played (or unplayed) from the client.
 func (s *Server) played(w http.ResponseWriter, r *http.Request, id string) {
 	u, ok := s.tokenUser(r)
 	if !ok {
-		writeJSON(w, 401, map[string]any{"error": "未登录"})
+		util.WriteJSON(w, 401, map[string]any{"error": "未登录"})
 		return
 	}
 	if r.Method == http.MethodPost {
 		_ = s.Store.Scrobble(u.ID, id, time.Now().Unix())
 	}
-	writeJSON(w, 200, map[string]any{})
+	util.WriteJSON(w, 200, map[string]any{})
 }
 
 func (s *Server) userByID(w http.ResponseWriter, r *http.Request, rest string) {
 	if _, ok := s.tokenUser(r); !ok {
-		writeJSON(w, 401, map[string]any{"error": "未登录"})
+		util.WriteJSON(w, 401, map[string]any{"error": "未登录"})
 		return
 	}
 	id := normID(strings.Split(rest, "/")[0])
 	u, err := s.Store.GetUserByID(id)
 	if err != nil {
-		writeJSON(w, 404, map[string]any{"error": "用户不存在"})
+		util.WriteJSON(w, 404, map[string]any{"error": "用户不存在"})
 		return
 	}
-	writeJSON(w, 200, s.userDto(u))
+	util.WriteJSON(w, 200, s.userDto(u))
 }
 
 // ------------------------------------------------------------------ media
 
 func (s *Server) audioPath(w http.ResponseWriter, r *http.Request, rest string) {
 	if _, ok := s.tokenUser(r); !ok {
-		writeJSON(w, 401, map[string]any{"error": "未登录"})
+		util.WriteJSON(w, 401, map[string]any{"error": "未登录"})
 		return
 	}
 	// /Audio/{id}/stream or /Audio/{id}/stream.mp3 or /Audio/{id}/universal
@@ -503,25 +502,9 @@ func (s *Server) audioPath(w http.ResponseWriter, r *http.Request, rest string) 
 		http.Error(w, "歌曲不存在", http.StatusNotFound)
 		return
 	}
-	file, err := os.Open(f.Path)
-	if err != nil {
+	if err := util.ServeMedia(w, r, f.Path, f.ContentType, false); err != nil {
 		http.Error(w, "音频文件不可用", http.StatusNotFound)
-		return
 	}
-	defer file.Close()
-	st, err := file.Stat()
-	if err != nil {
-		http.Error(w, "音频文件不可用", http.StatusNotFound)
-		return
-	}
-	ct := f.ContentType
-	if ct == "" {
-		ct = "application/octet-stream"
-	}
-	w.Header().Set("Content-Type", ct)
-	w.Header().Set("Accept-Ranges", "bytes")
-	w.Header().Set("Cache-Control", "no-cache")
-	http.ServeContent(w, r, filepath.Base(f.Path), st.ModTime(), file)
 }
 
 func (s *Server) image(w http.ResponseWriter, r *http.Request, id string) {
@@ -530,44 +513,13 @@ func (s *Server) image(w http.ResponseWriter, r *http.Request, id string) {
 		http.Error(w, "无封面", http.StatusNotFound)
 		return
 	}
-	file, err := os.Open(path)
-	if err != nil {
+	if err := util.ServeImage(w, r, path, mime, ""); err != nil {
 		http.Error(w, "无封面", http.StatusNotFound)
-		return
 	}
-	defer file.Close()
-	st, err := file.Stat()
-	if err != nil {
-		http.Error(w, "无封面", http.StatusNotFound)
-		return
-	}
-	if mime == "" {
-		mime = "image/jpeg"
-	}
-	w.Header().Set("Content-Type", mime)
-	w.Header().Set("Cache-Control", "public, max-age=604800")
-	http.ServeContent(w, r, filepath.Base(path), st.ModTime(), file)
 }
 
 func (s *Server) cover(id string) (string, string) {
-	if p, m, err := s.Store.AlbumCoverPath(id); err == nil && p != "" {
-		if _, e := os.Stat(p); e == nil {
-			return p, m
-		}
-	}
-	if song, err := s.Store.GetSong("", id); err == nil && song.AlbumID != "" {
-		if p, m, err := s.Store.AlbumCoverPath(song.AlbumID); err == nil && p != "" {
-			if _, e := os.Stat(p); e == nil {
-				return p, m
-			}
-		}
-	}
-	if p, m, err := s.Store.ArtistCover(id); err == nil && p != "" {
-		if _, e := os.Stat(p); e == nil {
-			return p, m
-		}
-	}
-	return "", ""
+	return s.Store.CoverPath(id)
 }
 
 // ------------------------------------------------------------------ dtos
@@ -688,7 +640,7 @@ func imageTag(id string) string {
 // ------------------------------------------------------------------ system
 
 func (s *Server) infoPublic(w http.ResponseWriter) {
-	writeJSON(w, 200, map[string]any{
+	util.WriteJSON(w, 200, map[string]any{
 		"ServerName":             serverName,
 		"Version":                serverVersion,
 		"ProductName":            productName,
@@ -700,7 +652,7 @@ func (s *Server) infoPublic(w http.ResponseWriter) {
 }
 
 func (s *Server) info(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, 200, map[string]any{
+	util.WriteJSON(w, 200, map[string]any{
 		"ServerName":                 serverName,
 		"Version":                    serverVersion,
 		"ProductName":                productName,
@@ -717,14 +669,6 @@ func (s *Server) info(w http.ResponseWriter, r *http.Request) {
 }
 
 // ------------------------------------------------------------------ helpers
-
-func writeJSON(w http.ResponseWriter, code int, v any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(code)
-	enc := json.NewEncoder(w)
-	enc.SetEscapeHTML(false)
-	_ = enc.Encode(v)
-}
 
 func atoi(s string, def int) int {
 	if s == "" {

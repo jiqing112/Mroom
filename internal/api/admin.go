@@ -8,7 +8,7 @@ import (
 	"path"
 	"strings"
 
-	"mrome/internal/store"
+	"mrome/internal/util"
 )
 
 func (s *Server) adminSettings(w http.ResponseWriter, r *http.Request) {
@@ -20,7 +20,7 @@ func (s *Server) adminSettings(w http.ResponseWriter, r *http.Request) {
 		scheme = "https"
 	}
 	base := scheme + "://" + r.Host
-	writeJSON(w, http.StatusOK, map[string]any{
+	util.WriteJSON(w, http.StatusOK, map[string]any{
 		"musicDir":    s.Cfg.MusicDir,
 		"dataDir":     s.Cfg.DataDir,
 		"dbPath":      s.Cfg.DBPath,
@@ -45,44 +45,44 @@ func (s *Server) setGuestModeHandler(w http.ResponseWriter, r *http.Request) {
 		Enabled bool `json:"enabled"`
 	}
 	if err := readJSON(r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "请求格式错误"})
+		util.WriteJSON(w, http.StatusBadRequest, map[string]any{"error": "请求格式错误"})
 		return
 	}
 	if req.Enabled {
 		if _, err := s.ensureGuest(); err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "无法创建访客账号：" + err.Error()})
+			util.WriteJSON(w, http.StatusInternalServerError, map[string]any{"error": "无法创建访客账号：" + err.Error()})
 			return
 		}
 	} else if n, _ := s.Store.CountAdmins(); n == 0 {
-		writeJSON(w, http.StatusBadRequest, map[string]any{
+		util.WriteJSON(w, http.StatusBadRequest, map[string]any{
 			"error": "还没有管理员账号。请先创建一个管理员，再关闭免登录，否则将无法登录。",
 		})
 		return
 	}
 	s.setGuestMode(req.Enabled)
 	log.Printf("免登录访问已%s", map[bool]string{true: "开启", false: "关闭"}[req.Enabled])
-	writeJSON(w, http.StatusOK, map[string]any{"guestMode": s.guestEnabled()})
+	util.WriteJSON(w, http.StatusOK, map[string]any{"guestMode": s.guestEnabled()})
 }
 
 func (s *Server) scanStatus(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{"scan": s.Scanner.Status()})
+	util.WriteJSON(w, http.StatusOK, map[string]any{"scan": s.Scanner.Status()})
 }
 
 func (s *Server) startScan(w http.ResponseWriter, r *http.Request) {
 	if !s.Scanner.Start(context.Background()) {
-		writeJSON(w, http.StatusOK, map[string]any{"scan": s.Scanner.Status(), "already": true})
+		util.WriteJSON(w, http.StatusOK, map[string]any{"scan": s.Scanner.Status(), "already": true})
 		return
 	}
-	writeJSON(w, http.StatusAccepted, map[string]any{"scan": s.Scanner.Status()})
+	util.WriteJSON(w, http.StatusAccepted, map[string]any{"scan": s.Scanner.Status()})
 }
 
 func (s *Server) listUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := s.Store.ListUsers()
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		util.WriteJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"users": users})
+	util.WriteJSON(w, http.StatusOK, map[string]any{"users": users})
 }
 
 func (s *Server) createUser(w http.ResponseWriter, r *http.Request) {
@@ -92,15 +92,15 @@ func (s *Server) createUser(w http.ResponseWriter, r *http.Request) {
 		IsAdmin  bool   `json:"isAdmin"`
 	}
 	if err := readJSON(r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "请求格式错误"})
+		util.WriteJSON(w, http.StatusBadRequest, map[string]any{"error": "请求格式错误"})
 		return
 	}
 	u, err := s.Store.CreateUser(req.Username, req.Password, req.IsAdmin)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		util.WriteJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"user": u})
+	util.WriteJSON(w, http.StatusOK, map[string]any{"user": u})
 }
 
 func (s *Server) updateUser(w http.ResponseWriter, r *http.Request) {
@@ -110,35 +110,35 @@ func (s *Server) updateUser(w http.ResponseWriter, r *http.Request) {
 		IsAdmin  *bool  `json:"isAdmin"`
 	}
 	if err := readJSON(r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "请求格式错误"})
+		util.WriteJSON(w, http.StatusBadRequest, map[string]any{"error": "请求格式错误"})
 		return
 	}
 	if req.Password != "" && len(req.Password) < 3 {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "密码至少 3 位"})
+		util.WriteJSON(w, http.StatusBadRequest, map[string]any{"error": "密码至少 3 位"})
 		return
 	}
 	if err := s.Store.UpdateUser(id, req.Password, req.IsAdmin); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		util.WriteJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	util.WriteJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 func (s *Server) deleteUser(w http.ResponseWriter, r *http.Request) {
 	if err := s.Store.DeleteUser(r.PathValue("id")); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		util.WriteJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	util.WriteJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 func (s *Server) regenAPIKey(w http.ResponseWriter, r *http.Request) {
 	key, err := s.Store.RegenerateAPIKey(r.PathValue("id"))
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		util.WriteJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"apiKey": key})
+	util.WriteJSON(w, http.StatusOK, map[string]any{"apiKey": key})
 }
 
 // spa serves the frontend from s.webFS: either a directory on disk (development
@@ -168,5 +168,3 @@ func (s *Server) spa() http.Handler {
 		http.ServeFileFS(w, r, fsys, "index.html")
 	})
 }
-
-var _ = store.User{}
