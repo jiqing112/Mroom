@@ -85,7 +85,7 @@
   {:else if album}
     <header class="head">
       <div class="art">
-        <Cover id={album.id} alt={album.name} rounded="rounded-[20px]" class="cover" eager sizes="(max-width: 760px) 56vw, 300px" />
+        <Cover id={album.id} alt={album.name} rounded="lg" class="cover" eager sizes="(max-width: 760px) 56vw, 300px" />
       </div>
       <div class="info">
         <h1 class="title-tight">{album.name}</h1>
@@ -252,11 +252,6 @@
   }
   .track-wrap:hover .edit {
     opacity: 1;
-  }
-  .loading {
-    padding: 80px 0;
-    text-align: center;
-    color: var(--text-3);
   }
   .modal {
     position: fixed;

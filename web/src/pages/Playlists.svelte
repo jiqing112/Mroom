@@ -97,7 +97,7 @@
           <div class="stack">
             <div class="layer l2"></div>
             <div class="layer l1"></div>
-            <Cover id={p.coverArt} alt={p.name} rounded="rounded-[14px]" class="cover" sizes="(max-width: 860px) 44vw, 200px" />
+            <Cover id={p.coverArt} alt={p.name} rounded="md" class="cover" sizes="(max-width: 860px) 44vw, 200px" />
             <button class="play" onclick={(e) => play(p, e)} aria-label="播放歌单">
               <Play size={15} fill="currentColor" style="margin-left:2px" />
             </button>

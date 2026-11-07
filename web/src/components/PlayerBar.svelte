@@ -68,7 +68,7 @@
 
     <div class="left">
       <button class="cover-btn" onclick={() => openStage(false)} aria-label="打开播放舞台">
-        <Cover id={track.albumId || track.coverArt} alt={track.album} rounded="rounded-[10px]" class="thumb" eager size={160} />
+        <Cover id={track.albumId || track.coverArt} alt={track.album} rounded="sm" class="thumb" eager size={160} />
         <span class="expand-hint"></span>
       </button>
       <div class="meta">

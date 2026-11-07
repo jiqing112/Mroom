@@ -168,9 +168,9 @@
   }
   .error {
     font-size: 12px;
-    color: #fb7185;
-    background: rgba(251, 113, 133, 0.1);
-    border: 1px solid rgba(251, 113, 133, 0.25);
+    color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
     padding: 9px 12px;
     border-radius: 10px;
   }

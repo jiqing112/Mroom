@@ -157,7 +157,7 @@
                 onclick={() => choose({ type: 'artist', item: a })}
                 onmouseenter={() => (cursor = offset('artist') + i)}
               >
-                <Cover id={a.coverArt || a.id} alt={a.name} rounded="rounded-full" class="r-cover" size={96} />
+                <Cover id={a.coverArt || a.id} alt={a.name} rounded="full" class="r-cover" size={96} />
                 <div class="r-main">
                   <div class="r-title">
                     {#each parts(a.name) as p}<span class:hit={p.hit}>{p.t}</span>{/each}
@@ -178,7 +178,7 @@
                 onclick={() => choose({ type: 'album', item: a })}
                 onmouseenter={() => (cursor = offset('album') + i)}
               >
-                <Cover id={a.id} alt={a.name} rounded="rounded-md" class="r-cover" size={96} />
+                <Cover id={a.id} alt={a.name} rounded="sm" class="r-cover" size={96} />
                 <div class="r-main">
                   <div class="r-title">
                     {#each parts(a.name) as p}<span class:hit={p.hit}>{p.t}</span>{/each}
@@ -199,7 +199,7 @@
                 onclick={() => choose({ type: 'song', item: s })}
                 onmouseenter={() => (cursor = offset('song') + i)}
               >
-                <Cover id={s.albumId} alt={s.album} rounded="rounded-md" class="r-cover" size={96} />
+                <Cover id={s.albumId} alt={s.album} rounded="sm" class="r-cover" size={96} />
                 <div class="r-main">
                   <div class="r-title">
                     {#each parts(s.title) as p}<span class:hit={p.hit}>{p.t}</span>{/each}

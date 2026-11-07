@@ -162,7 +162,7 @@
     aria-label="正在播放"
   >
     <div class="bg" aria-hidden="true">
-      <Cover id={track.albumId || track.coverArt} alt="" rounded="rounded-none" class="bg-img" eager sizes="320px" />
+      <Cover id={track.albumId || track.coverArt} alt="" rounded="none" class="bg-img" eager sizes="320px" />
       <div class="veil"></div>
     </div>
 
@@ -200,7 +200,7 @@
           >
             <div class="disc">
               <div class="label">
-                <Cover id={track.albumId || track.coverArt} alt={track.album} rounded="rounded-full" eager sizes="(max-width: 640px) 52vw, 390px" />
+                <Cover id={track.albumId || track.coverArt} alt={track.album} rounded="full" eager sizes="(max-width: 640px) 52vw, 390px" />
               </div>
               <div class="hole"></div>
             </div>
@@ -331,7 +331,7 @@
                           {i + 1}
                         {/if}
                       </span>
-                      <Cover id={item.albumId} alt={item.album} rounded="rounded-md" class="q-cover" size={96} />
+                      <Cover id={item.albumId} alt={item.album} rounded="sm" class="q-cover" size={96} />
                       <span class="q-meta">
                         <span class="q-title clamp-1">{item.title}</span>
                         <span class="q-artist clamp-1">{item.artist}</span>
@@ -579,8 +579,8 @@
     transition: all 0.2s var(--ease);
   }
   .clear-queue:hover {
-    color: #fb7185;
-    border-color: rgba(251, 113, 133, 0.35);
+    color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 35%, transparent);
   }
   .count {
     font-size: 10px;

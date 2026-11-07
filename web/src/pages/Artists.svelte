@@ -61,30 +61,4 @@
   .page {
     padding-bottom: 20px;
   }
-  .search-mini {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    height: 40px;
-    padding: 0 14px;
-    border-radius: 999px;
-    border: 1px solid var(--line);
-    background: var(--glass);
-    color: var(--text-3);
-  }
-  .search-mini input {
-    width: 150px;
-    border: none;
-    background: none;
-    outline: none;
-    color: var(--text);
-    font-size: 12.5px;
-    font-family: var(--font-sans);
-  }
-  .loading {
-    padding: 60px 0;
-    text-align: center;
-    color: var(--text-3);
-    font-size: 12.5px;
-  }
 </style>

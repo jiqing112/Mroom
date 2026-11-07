@@ -8,7 +8,7 @@
 
 <Link href={`/artists/${artist.id}`} class="artist">
   <div class="avatar">
-    <Cover id={artist.coverArt || artist.id} alt={artist.name} rounded="rounded-full" class="fill" sizes="(max-width: 860px) 40vw, 200px" />
+    <Cover id={artist.coverArt || artist.id} alt={artist.name} rounded="full" class="fill" sizes="(max-width: 860px) 40vw, 200px" />
   </div>
   <div class="name clamp-1">{artist.name}</div>
   <div class="sub">{fmtCount(artist.albumCount, '张专辑')}</div>

@@ -22,7 +22,7 @@
 
 <Link href={`/albums/${album.id}`} class={`card ${size === 'sm' ? 'compact' : ''}`}>
   <div class="art">
-    <Cover id={album.id} alt={album.name} rounded="rounded-[14px]" class="art-img" sizes="(max-width: 860px) 44vw, 200px" />
+    <Cover id={album.id} alt={album.name} rounded="md" class="art-img" sizes="(max-width: 860px) 44vw, 200px" />
     <div class="shade"></div>
     <button class="play" onclick={play} aria-label="播放专辑">
       <Play size={16} fill="currentColor" style="margin-left:2px" />

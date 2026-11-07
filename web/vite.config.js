@@ -1,7 +1,6 @@
 import { writeFileSync } from 'node:fs'
 import { defineConfig } from 'vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
-import tailwindcss from '@tailwindcss/vite'
 
 // emptyOutDir wipes the whole dist tree; go:embed needs the directory to exist
 // even on a fresh checkout, so put the committed placeholder back after builds.
@@ -12,7 +11,7 @@ const keepGitkeep = {
 }
 
 export default defineConfig({
-  plugins: [svelte(), tailwindcss(), keepGitkeep],
+  plugins: [svelte(), keepGitkeep],
   server: {
     port: 5173,
     proxy: {

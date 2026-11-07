@@ -1,16 +1,25 @@
 <script>
   import { hashHue } from '../lib/colors.svelte.js'
 
+  // Rounded uses the shared --r-* scale; 'full' gives the circular avatar.
   let {
     id = '',
     alt = '',
     class: cls = '',
     imgClass = '',
-    rounded = 'rounded-2xl',
+    rounded = 'md',
     eager = false,
     sizes = '',
     size = 0
   } = $props()
+
+  const RADII = {
+    none: '0px',
+    sm: 'var(--r-sm)',
+    md: 'var(--r-md)',
+    lg: 'var(--r-lg)',
+    full: '999px'
+  }
 
   let failed = $state(false)
   let loaded = $state(false)
@@ -23,6 +32,7 @@
       ? [160, 320, 640, 1024].map((w) => `/api/cover/${id}/${w} ${w}w`).join(', ')
       : undefined
   )
+  const radius = $derived(RADII[rounded] ?? RADII.md)
 
   // The same Cover instance is reused when the player advances to another
   // track; reset loader state so an earlier error does not hide the new art.
@@ -33,7 +43,7 @@
   })
 </script>
 
-<div class="cover {rounded} {cls}" style={`--h:${hue}`}>
+<div class="cover {cls}" style={`--h:${hue}; --cover-radius:${radius}`}>
   <div class="ph" aria-hidden="true"></div>
   {#if id && !failed}
     <img
@@ -55,6 +65,7 @@
   .cover {
     position: relative;
     overflow: hidden;
+    border-radius: var(--cover-radius, var(--r-md));
     background: hsl(var(--h) 20% 12%);
     isolation: isolate;
     transform: translateZ(0);

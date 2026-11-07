@@ -207,7 +207,7 @@
   </div>
 
   {#if showCover}
-    <Cover id={song.albumId} alt={song.album} rounded="rounded-lg" class="row-cover" size={160} />
+    <Cover id={song.albumId} alt={song.album} rounded="sm" class="row-cover" size={160} />
   {/if}
 
   <div class="main">
@@ -439,10 +439,10 @@
     color: var(--text);
   }
   .menu-item.danger {
-    color: #fb7185;
+    color: var(--danger);
   }
   .menu-item.danger:hover {
-    background: rgba(251, 113, 133, 0.1);
+    background: color-mix(in srgb, var(--danger) 10%, transparent);
   }
   /* Between the collapsed sidebar and the phone layout the album column is the
      first thing to go — it squeezes the title harder than anything else. */

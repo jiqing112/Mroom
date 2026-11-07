@@ -137,33 +137,6 @@
     margin-bottom: 20px;
     flex-wrap: wrap;
   }
-  .loading {
-    padding: 60px 0;
-    text-align: center;
-    color: var(--text-3);
-    font-size: 12.5px;
-  }
-  .genre-select {
-    height: 30px;
-    padding: 0 28px 0 12px;
-    border-radius: 999px;
-    border: 1px solid var(--line);
-    background-color: var(--glass);
-    color: var(--text-2);
-    font-size: 12px;
-    font-family: var(--font-sans);
-    cursor: pointer;
-    outline: none;
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-  }
-  .genre-select:hover,
-  .genre-select:focus-visible {
-    border-color: var(--line-strong);
-    color: var(--text);
-  }
   .more-row {
     display: flex;
     justify-content: center;

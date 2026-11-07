@@ -90,7 +90,7 @@
   {:else if playlist}
     <header class="head">
       <div class="art">
-        <Cover id={playlist.coverArt} alt={playlist.name} rounded="rounded-[18px]" class="cover" eager sizes="(max-width: 760px) 52vw, 260px" />
+        <Cover id={playlist.coverArt} alt={playlist.name} rounded="lg" class="cover" eager sizes="(max-width: 760px) 52vw, 260px" />
       </div>
       <div class="info">
         <div class="title-row">
@@ -197,11 +197,6 @@
     display: flex;
     flex-direction: column;
     gap: 1px;
-  }
-  .loading {
-    padding: 80px 0;
-    text-align: center;
-    color: var(--text-3);
   }
   @media (max-width: 760px) {
     .head {

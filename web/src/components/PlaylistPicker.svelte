@@ -91,7 +91,7 @@
           <Cover
             id={playlistPicker.track.albumId}
             alt={playlistPicker.track.album}
-            rounded="rounded-md"
+            rounded="sm"
             class="thumb"
             size={160}
           />

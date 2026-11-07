@@ -802,7 +802,7 @@
   .guest-warn {
     margin: 7px 0 0;
     font-size: 11.5px;
-    color: #f0a35e;
+    color: var(--warn);
   }
   .switch {
     position: relative;
@@ -1009,8 +1009,8 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: #4ade80;
-    box-shadow: 0 0 10px #4ade80;
+    background: var(--ok);
+    box-shadow: 0 0 10px var(--ok);
   }
   .proto {
     border-radius: 18px;

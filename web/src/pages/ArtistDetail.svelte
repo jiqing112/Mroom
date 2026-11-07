@@ -72,7 +72,7 @@
   {:else if artist}
     <header class="head">
       <div class="avatar">
-        <Cover id={artist.coverArt || artist.id} alt={artist.name} rounded="rounded-full" class="cover" eager sizes="(max-width: 760px) 42vw, 210px" />
+        <Cover id={artist.coverArt || artist.id} alt={artist.name} rounded="full" class="cover" eager sizes="(max-width: 760px) 42vw, 210px" />
       </div>
       <div class="info">
         <h1 class="title-tight">{artist.name}</h1>
@@ -199,11 +199,6 @@
     display: flex;
     flex-direction: column;
     gap: 1px;
-  }
-  .loading {
-    padding: 80px 0;
-    text-align: center;
-    color: var(--text-3);
   }
   .more-row {
     display: flex;

@@ -53,10 +53,10 @@
     flex: none;
   }
   .ok .dot {
-    background: #4ade80;
+    background: var(--ok);
   }
   .err .dot {
-    background: #fb7185;
+    background: var(--danger);
   }
   @media (max-width: 860px) {
     .toasts {

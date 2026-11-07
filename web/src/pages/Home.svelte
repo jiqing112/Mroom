@@ -95,7 +95,7 @@
   {:else}
     <section class="hero">
       <div class="hero-bg" aria-hidden="true">
-        <Cover id={hero.albumId} alt="" rounded="rounded-none" class="hero-bg-img" eager sizes="320px" />
+        <Cover id={hero.albumId} alt="" rounded="none" class="hero-bg-img" eager sizes="320px" />
       </div>
 
       <div class="hero-copy">
@@ -141,7 +141,7 @@
         <div class="vinyl {player.playing && hero.live ? 'playing' : ''}">
           <div class="disc">
             <div class="label">
-              <Cover id={hero.albumId} alt={hero.title} rounded="rounded-full" eager sizes="(max-width: 900px) 52vw, 330px" />
+              <Cover id={hero.albumId} alt={hero.title} rounded="full" eager sizes="(max-width: 900px) 52vw, 330px" />
             </div>
             <div class="hole"></div>
           </div>

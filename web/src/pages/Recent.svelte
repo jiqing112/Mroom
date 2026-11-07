@@ -63,10 +63,4 @@
     flex-direction: column;
     gap: 1px;
   }
-  .loading {
-    padding: 60px 0;
-    text-align: center;
-    color: var(--text-3);
-    font-size: 12.5px;
-  }
 </style>

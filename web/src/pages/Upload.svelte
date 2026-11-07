@@ -400,8 +400,8 @@
     background: var(--glass);
   }
   .file.done {
-    border-color: rgba(74, 222, 128, 0.22);
-    background: rgba(74, 222, 128, 0.05);
+    border-color: color-mix(in srgb, var(--ok) 22%, transparent);
+    background: color-mix(in srgb, var(--ok) 5%, transparent);
   }
   .file.skipped {
     opacity: 0.72;
@@ -410,8 +410,8 @@
     color: var(--text-3);
   }
   .file.error {
-    border-color: rgba(251, 113, 133, 0.28);
-    background: rgba(251, 113, 133, 0.05);
+    border-color: color-mix(in srgb, var(--danger) 28%, transparent);
+    background: color-mix(in srgb, var(--danger) 5%, transparent);
   }
   .f-icon {
     width: 34px;
@@ -441,10 +441,10 @@
     flex-wrap: wrap;
   }
   .ok {
-    color: #4ade80;
+    color: var(--ok);
   }
   .bad {
-    color: #fb7185;
+    color: var(--danger);
   }
   .f-bar {
     height: 2px;
@@ -460,7 +460,7 @@
     transition: width 0.25s linear;
   }
   .file.done .f-bar i {
-    background: #4ade80;
+    background: var(--ok);
   }
   .f-end {
     flex: none;
@@ -469,7 +469,7 @@
     place-items: center;
   }
   .check {
-    color: #4ade80;
+    color: var(--ok);
   }
   .denied {
     display: flex;

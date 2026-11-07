@@ -84,7 +84,7 @@
           <Cover
             id={renameDialog.track.albumId}
             alt={renameDialog.track.album}
-            rounded="rounded-md"
+            rounded="sm"
             class="thumb"
             size={160}
           />
