@@ -5,7 +5,6 @@
   import EmptyState from '../components/EmptyState.svelte'
   import { api } from '../lib/api.js'
   import { playQueue, shuffleAll } from '../lib/player.svelte.js'
-  import { fmtDuration, fmtCount } from '../lib/format.js'
   import { notify } from '../lib/toast.svelte.js'
 
   let songs = $state([])
@@ -77,15 +76,12 @@
     return () => clearTimeout(timer)
   })
 
-  const duration = $derived(songs.reduce((a, s) => a + (s.duration || 0), 0))
 </script>
 
 <div class="page rise">
   <header class="page-head">
     <div>
-      <div class="eyebrow">Library</div>
       <h1 class="page-title">全部歌曲</h1>
-      <div class="page-sub">{fmtCount(total)} · {fmtDuration(duration)}</div>
     </div>
     <div class="toolbar">
       <div class="search-mini">
@@ -120,7 +116,7 @@
   {#if loading && !songs.length}
     <div class="loading">正在载入…</div>
   {:else if !songs.length}
-    <EmptyState icon={Music2} title={q ? '没有匹配的歌曲' : '还没有歌曲'} desc={q ? '换个关键词试试。' : '把音乐上传到库里，它们会自动出现在这里。'} />
+    <EmptyState icon={Music2} title={q ? '没有匹配的歌曲' : '还没有歌曲'} desc={q ? '换个关键词试试。' : ''} />
   {:else}
     <div class="list">
       {#each songs as song, i (song.id)}

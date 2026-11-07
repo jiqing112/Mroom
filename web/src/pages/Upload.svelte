@@ -154,9 +154,7 @@
   <div class="page rise">
     <header class="page-head">
       <div>
-        <div class="eyebrow">Ingest</div>
         <h1 class="page-title">上传音乐</h1>
-        <div class="page-sub">拖入文件或文件夹，自动读取标签并归入音乐库</div>
       </div>
       {#if doneCount > 0}
         <button class="btn" onclick={() => navigate('/songs')}>
@@ -180,8 +178,7 @@
       ondrop={onDrop}
     >
       <div class="drop-icon"><UploadCloud size={26} strokeWidth={1.4} /></div>
-      <div class="drop-title">拖拽音频到这里</div>
-      <div class="drop-sub">或点击选择文件 · 支持 MP3 / FLAC / M4A / WAV / OGG / OPUS</div>
+      <div class="drop-title">拖入音频文件，或点击选择</div>
       <div class="drop-actions">
         <button
           class="btn"
@@ -202,7 +199,6 @@
           <FolderOpen size={14} /> 选择文件夹
         </button>
       </div>
-      <div class="drop-foot">大文件自动分片上传（4 MB / 片），中断后可从已上传位置继续</div>
     </div>
 
     <input
@@ -232,7 +228,6 @@
       <section class="queue">
         <div class="queue-head">
           <div>
-            <span class="eyebrow">Queue</span>
             <span class="q-summary">
               {finishedCount}/{items.length} 完成 · {humanSize(sentBytes)} / {humanSize(totalBytes)}
             </span>
@@ -344,20 +339,10 @@
     font-weight: 500;
     letter-spacing: -0.02em;
   }
-  .drop-sub {
-    font-size: 12px;
-    color: var(--text-3);
-  }
   .drop-actions {
     display: flex;
     gap: 8px;
     margin-top: 14px;
-  }
-  .drop-foot {
-    margin-top: 18px;
-    font-size: 10.5px;
-    color: var(--text-3);
-    letter-spacing: 0.02em;
   }
   .queue {
     margin-top: 34px;

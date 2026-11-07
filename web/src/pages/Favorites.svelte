@@ -43,20 +43,14 @@
 <div class="page rise">
   <header class="page-head">
     <div>
-      <div class="eyebrow">Favorites</div>
       <h1 class="page-title">我的收藏</h1>
-      <div class="page-sub">{total} 项收藏</div>
     </div>
   </header>
 
   {#if loading && !total}
     <div class="loading">正在载入…</div>
   {:else if !total}
-    <EmptyState
-      icon={Heart}
-      title="还没有收藏"
-      desc="在歌曲、专辑或艺术家上点击星标，收藏会汇总到这里。"
-    />
+    <EmptyState icon={Heart} title="还没有收藏" />
   {:else}
     {#if songs.length}
       <section class="section">

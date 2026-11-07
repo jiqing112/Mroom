@@ -6,7 +6,6 @@
   import { auth, loadMe } from './lib/auth.svelte.js'
   import { initPlayer, player, toggle, seek, toggleMute, next, prev, stop } from './lib/player.svelte.js'
   import { ui, openSearch, closeSearch, closeSettings, openStage, closeStage } from './lib/ui.svelte.js'
-  import { api } from './lib/api.js'
   import Aurora from './components/Aurora.svelte'
   import Sidebar from './components/Sidebar.svelte'
   import TopBar from './components/TopBar.svelte'
@@ -31,17 +30,7 @@
   import Upload from './pages/Upload.svelte'
 
   let ready = $state(false)
-  let stats = $state(null)
   let mainEl = $state(null)
-
-  async function loadStats() {
-    try {
-      const data = await api.get('/api/home')
-      stats = data.stats
-    } catch {
-      /* ignore */
-    }
-  }
 
   onMount(() => {
     initPerf()
@@ -54,7 +43,6 @@
       else if (route.name === 'login' && !auth.user.guest) navigate('/')
     })
 
-    const onRefresh = () => loadStats()
     const onNav = () => {
       if (mainEl) mainEl.scrollTo({ top: 0, behavior: 'instant' })
     }
@@ -64,11 +52,9 @@
       auth.user = null
       navigate('/login', { replace: true })
     }
-    window.addEventListener('mrome:refresh', onRefresh)
     window.addEventListener('mrome:navigate', onNav)
     window.addEventListener('mrome:unauthorized', onUnauthorized)
     return () => {
-      window.removeEventListener('mrome:refresh', onRefresh)
       window.removeEventListener('mrome:navigate', onNav)
       window.removeEventListener('mrome:unauthorized', onUnauthorized)
     }
@@ -79,7 +65,6 @@
     // Only touch the audio pipeline once there is a session: restoring a saved
     // queue on the login screen would request /api/stream and fail with 401.
     initPlayer()
-    loadStats()
   })
 
   $effect(() => {
@@ -163,7 +148,7 @@
 {:else}
   <div class="app grain">
     <Aurora />
-    <Sidebar {stats} />
+    <Sidebar />
     <main class="main scroll" bind:this={mainEl}>
       <TopBar />
       <div class="main-inner">
@@ -191,8 +176,7 @@
           <Upload />
         {:else}
           <div class="notfound">
-            <div class="eyebrow">404</div>
-            <h1>这一页没有声音</h1>
+            <h1>页面不存在</h1>
             <button class="btn btn-primary" onclick={() => navigate('/')}>回到首页</button>
           </div>
         {/if}

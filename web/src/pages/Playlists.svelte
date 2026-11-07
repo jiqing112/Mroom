@@ -77,9 +77,7 @@
 <div class="page rise">
   <header class="page-head">
     <div>
-      <div class="eyebrow">Playlists</div>
       <h1 class="page-title">歌单</h1>
-      <div class="page-sub">{playlists.length} 个歌单 · 与 Subsonic 客户端双向同步</div>
     </div>
     <button class="btn btn-primary" onclick={create}>
       <Plus size={15} /> 新建歌单
@@ -89,7 +87,7 @@
   {#if loading && !playlists.length}
     <div class="loading">正在载入…</div>
   {:else if !playlists.length}
-    <EmptyState icon={ListMusic} title="还没有歌单" desc="创建歌单，把喜欢的曲目串成一段旅程；在 Subsonic 客户端里创建的歌单也会出现在这里。">
+    <EmptyState icon={ListMusic} title="还没有歌单">
       <button class="btn btn-primary" onclick={create}><Plus size={14} /> 新建歌单</button>
     </EmptyState>
   {:else}
@@ -116,7 +114,6 @@
       <button class="pl-new" onclick={create}>
         <span class="plus-box"><Plus size={20} strokeWidth={1.6} /></span>
         <span class="name">新建歌单</span>
-        <span class="sub">从空白开始</span>
       </button>
     </div>
   {/if}
@@ -253,9 +250,11 @@
   .pl-new:hover .name {
     color: var(--text);
   }
-  .pl-new .name,
-  .pl-new .sub {
+  .pl-new .name {
     display: block;
+    margin-top: 3px;
+    font-size: 11px;
+    color: var(--text-3);
   }
   .loading {
     padding: 60px 0;

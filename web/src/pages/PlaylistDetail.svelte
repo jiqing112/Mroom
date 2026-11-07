@@ -93,7 +93,6 @@
         <Cover id={playlist.coverArt} alt={playlist.name} rounded="rounded-[18px]" class="cover" eager sizes="(max-width: 760px) 52vw, 260px" />
       </div>
       <div class="info">
-        <div class="eyebrow">Playlist · {playlist.owner}</div>
         <div class="title-row">
           <h1 class="title-tight" ondblclick={canEdit ? rename : null}>{playlist.name}</h1>
           {#if canEdit}
@@ -103,10 +102,11 @@
           {/if}
         </div>
         <div class="meta">
+          <span>{playlist.owner}</span>
+          <span class="sep">·</span>
           <span>{playlist.songCount} 首</span>
           <span class="sep">·</span>
           <span>{fmtDuration(playlist.duration)}</span>
-          {#if !playlist.public}<span class="sep">·</span><span>私密</span>{/if}
         </div>
         <div class="actions">
           <button class="btn btn-primary" onclick={() => playQueue(playlist.entries, 0)} disabled={!playlist.entries?.length}>
@@ -137,11 +137,7 @@
         {/each}
       </div>
     {:else}
-      <EmptyState
-        icon={ListMusic}
-        title="歌单还是空的"
-        desc="在歌曲列表的 ⋯ 菜单里选择「加入歌单」，或从 Subsonic 客户端添加；歌曲会同步到这里。"
-      />
+      <EmptyState icon={ListMusic} title="歌单还是空的" />
     {/if}
   {:else}
     <div class="loading">歌单不存在</div>
@@ -172,7 +168,7 @@
   .title-tight {
     font-size: clamp(1.9rem, 4vw, 3.2rem);
     font-weight: 500;
-    margin: 12px 0 12px;
+    margin: 0 0 12px;
     overflow-wrap: anywhere;
     cursor: default;
   }

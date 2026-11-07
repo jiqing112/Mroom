@@ -75,7 +75,6 @@
         <Cover id={artist.coverArt || artist.id} alt={artist.name} rounded="rounded-full" class="cover" eager sizes="(max-width: 760px) 42vw, 210px" />
       </div>
       <div class="info">
-        <div class="eyebrow">Artist</div>
         <h1 class="title-tight">{artist.name}</h1>
         <div class="meta">
           <span>{fmtCount(artist.albumCount, '张专辑')}</span>
@@ -164,7 +163,7 @@
   .title-tight {
     font-size: clamp(2rem, 4vw, 3.3rem);
     font-weight: 500;
-    margin: 12px 0 12px;
+    margin: 0 0 12px;
     overflow-wrap: anywhere;
   }
   .meta {

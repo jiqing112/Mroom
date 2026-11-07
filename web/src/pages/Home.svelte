@@ -9,7 +9,7 @@
   import { api } from '../lib/api.js'
   import { player, currentTrack, toggle, playQueue } from '../lib/player.svelte.js'
   import { openStage } from '../lib/ui.svelte.js'
-  import { fmtDuration, fmtTime } from '../lib/format.js'
+  import { fmtTime } from '../lib/format.js'
   import { navigate } from '../lib/router.svelte.js'
   import { notify } from '../lib/toast.svelte.js'
   import { auth } from '../lib/auth.svelte.js'
@@ -87,7 +87,7 @@
   {#if loading}
     <div class="hero skeleton"></div>
   {:else if !hero}
-    <EmptyState icon={Disc3} title="音乐库还是空的" desc="上传第一首歌，或把音频文件放进音乐目录后执行扫描。">
+    <EmptyState icon={Disc3} title="音乐库还是空的">
       {#if auth.user?.isAdmin}
         <button class="btn btn-primary" onclick={() => navigate('/upload')}>上传音乐</button>
       {/if}
@@ -99,9 +99,6 @@
       </div>
 
       <div class="hero-copy">
-        <div class="eyebrow">
-          {#if hero.live}<span class="live-dot"></span> Now playing{:else}Start here{/if}
-        </div>
         <h1 class="title-tight">{hero.title}</h1>
         <div class="hero-meta">
           <span class="artist">{hero.artist}</span>
@@ -137,18 +134,6 @@
             </button>
           {/if}
         </div>
-
-        {#if data?.stats}
-          <div class="hero-stats">
-            <div><b>{data.stats.songs}</b><span>曲目</span></div>
-            <i></i>
-            <div><b>{data.stats.albums}</b><span>专辑</span></div>
-            <i></i>
-            <div><b>{data.stats.artists}</b><span>艺术家</span></div>
-            <i></i>
-            <div><b>{fmtDuration(data.stats.duration)}</b><span>总时长</span></div>
-          </div>
-        {/if}
       </div>
 
       <div class="hero-art">
@@ -264,21 +249,10 @@
     z-index: 2;
     min-width: 0;
   }
-  .live-dot {
-    display: inline-block;
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: var(--accent);
-    box-shadow: 0 0 10px var(--accent);
-    margin-right: 8px;
-    vertical-align: middle;
-    animation: breathe 2.4s ease-in-out infinite;
-  }
   .hero h1 {
     font-size: clamp(2.1rem, 4.2vw, 3.7rem);
     font-weight: 500;
-    margin: 16px 0 12px;
+    margin: 0 0 12px;
     max-width: 15ch;
     overflow-wrap: anywhere;
   }
@@ -313,33 +287,6 @@
     align-items: center;
     gap: 10px;
     margin-top: 24px;
-  }
-  .hero-stats {
-    display: flex;
-    align-items: center;
-    gap: 18px;
-    margin-top: 34px;
-    flex-wrap: wrap;
-  }
-  .hero-stats div {
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
-  }
-  .hero-stats b {
-    font-size: 13px;
-    font-weight: 500;
-    font-variant-numeric: tabular-nums;
-  }
-  .hero-stats span {
-    font-size: 10.5px;
-    color: var(--text-3);
-    letter-spacing: 0.04em;
-  }
-  .hero-stats i {
-    width: 1px;
-    height: 12px;
-    background: var(--line-strong);
   }
   .hero-art {
     position: relative;
@@ -455,10 +402,6 @@
     .hero h1 {
       font-size: clamp(1.8rem, 7vw, 2.4rem);
       margin: 12px 0 10px;
-    }
-    .hero-stats {
-      margin-top: 22px;
-      gap: 12px;
     }
     .row {
       grid-auto-columns: 148px;

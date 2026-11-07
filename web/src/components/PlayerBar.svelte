@@ -17,8 +17,6 @@
     Star,
     Loader2
   } from 'lucide-svelte'
-  import { fly } from 'svelte/transition'
-  import { onDestroy } from 'svelte'
   import Cover from './Cover.svelte'
   import Slider from './Slider.svelte'
   import {
@@ -44,27 +42,10 @@
   const pct = $derived(duration > 0 ? Math.min(100, (player.time / duration) * 100) : 0)
   const mode = $derived(playMode())
 
-  // Transient hint above the bar that names the mode just selected. It lives
-  // next to the player instead of the global toast stack so it can point at the
-  // controls it belongs to and never collides with playback error messages.
-  let tipText = $state('')
-  let tipSeq = $state(0)
-  let tipTimer = 0
-
-  function pickMode(id) {
-    setPlayMode(id)
-    tipText = PLAY_MODES.find((m) => m.id === id)?.label || ''
-    tipSeq += 1
-    clearTimeout(tipTimer)
-    tipTimer = setTimeout(() => (tipText = ''), 2000)
-  }
-
   // Mobile keeps a single mode button that cycles order → one → shuffle.
   function cycleMode() {
-    pickMode(mode === 'order' ? 'one' : mode === 'one' ? 'shuffle' : 'order')
+    setPlayMode(mode === 'order' ? 'one' : mode === 'one' ? 'shuffle' : 'order')
   }
-
-  onDestroy(() => clearTimeout(tipTimer))
 
   async function toggleStar() {
     if (!track) return
@@ -84,25 +65,6 @@
 {#if track}
   <div class="player glass-deep">
     <div class="m-progress" aria-hidden="true"><i style={`transform:scaleX(${pct / 100})`}></i></div>
-
-    <div class="tip-layer" aria-live="polite">
-      {#if tipText}
-        {#key tipSeq}
-          <div class="mode-tip" transition:fly={{ y: 8, duration: 200 }}>
-            <span class="tip-ico">
-              {#if mode === 'one'}
-                <Repeat1 size={13} strokeWidth={1.8} />
-              {:else if mode === 'shuffle'}
-                <Shuffle size={13} strokeWidth={1.8} />
-              {:else}
-                <ListStart size={13} strokeWidth={1.8} />
-              {/if}
-            </span>
-            <span>{tipText}</span>
-          </div>
-        {/key}
-      {/if}
-    </div>
 
     <div class="left">
       <button class="cover-btn" onclick={() => openStage(false)} aria-label="打开播放舞台">
@@ -187,7 +149,7 @@
         <button
           class="icon-btn"
           class:active={mode === 'shuffle'}
-          onclick={() => pickMode(mode === 'shuffle' ? 'order' : 'shuffle')}
+          onclick={() => setPlayMode(mode === 'shuffle' ? 'order' : 'shuffle')}
           title="随机播放"
           aria-label="随机播放"
           aria-pressed={mode === 'shuffle'}
@@ -212,7 +174,7 @@
         <button
           class="icon-btn"
           class:active={mode === 'one'}
-          onclick={() => pickMode(mode === 'one' ? 'order' : 'one')}
+          onclick={() => setPlayMode(mode === 'one' ? 'order' : 'one')}
           title="单曲循环"
           aria-label="单曲循环"
           aria-pressed={mode === 'one'}
@@ -340,38 +302,6 @@
     display: flex;
     align-items: center;
     gap: 4px;
-  }
-  /* Floating hint above the bar, naming the mode that was just selected. */
-  .tip-layer {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: -46px;
-    display: flex;
-    justify-content: center;
-    pointer-events: none;
-    z-index: 2;
-  }
-  .mode-tip {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    height: 30px;
-    padding: 0 13px;
-    border-radius: 999px;
-    background: var(--glass-3);
-    border: 1px solid var(--line);
-    box-shadow: var(--shadow-soft);
-    backdrop-filter: blur(24px) saturate(150%);
-    color: var(--text);
-    font-size: 12.5px;
-    white-space: nowrap;
-  }
-  .tip-ico {
-    display: grid;
-    place-items: center;
-    flex: none;
-    color: var(--accent);
   }
   .play {
     width: 38px;

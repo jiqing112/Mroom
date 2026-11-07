@@ -173,8 +173,6 @@
     >
       <header class="head">
         <div class="head-left">
-          <span class="eyebrow">Now Playing</span>
-          <span class="dot-sep"></span>
           <span class="src">{track.suffix?.toUpperCase()} · {track.bitrate || '—'} kbps</span>
         </div>
         <button class="icon-btn close" onclick={closeStage} aria-label="关闭">
@@ -300,7 +298,6 @@
                 <div class="lyrics-empty">
                   <div class="empty-mark">♪</div>
                   <p>这首歌还没有歌词</p>
-                  <span>将同名 .lrc 文件放在音频旁，或写入内嵌歌词后重新扫描。</span>
                 </div>
               {:else}
                 <div class="lyrics-pad"></div>
@@ -414,13 +411,6 @@
   .head-left {
     display: flex;
     align-items: center;
-    gap: 10px;
-  }
-  .dot-sep {
-    width: 3px;
-    height: 3px;
-    border-radius: 50%;
-    background: var(--text-3);
   }
   .src {
     font-size: 10px;
@@ -769,9 +759,6 @@
     }
     .lyrics-empty {
       min-height: 150px;
-    }
-    .head .eyebrow {
-      font-size: 9px;
     }
   }
   @media (max-width: 640px) {

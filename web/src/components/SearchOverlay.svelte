@@ -1,5 +1,5 @@
 <script>
-  import { Search, X, Music2, Disc3, Users, CornerDownLeft } from 'lucide-svelte'
+  import { Search, X, Music2, Disc3, Users } from 'lucide-svelte'
   import { ui, closeSearch } from '../lib/ui.svelte.js'
   import { api } from '../lib/api.js'
   import { navigate } from '../lib/router.svelte.js'
@@ -145,9 +145,8 @@
         {#if loading}
           <div class="hint-row">搜索中…</div>
         {:else if !q.trim()}
-          <div class="hint-row">输入关键词开始搜索，支持标题、艺术家与专辑名。</div>
         {:else if total === 0}
-          <div class="hint-row">没有找到与 “{q}” 相关的内容</div>
+          <div class="hint-row">没有找到 “{q}”</div>
         {:else}
           {#if results.artists.length}
             <div class="group-label">艺术家</div>
@@ -214,12 +213,6 @@
             {/each}
           {/if}
         {/if}
-      </div>
-
-      <div class="foot">
-        <span><kbd>↑</kbd><kbd>↓</kbd> 选择</span>
-        <span><kbd>↵</kbd> 打开</span>
-        <span><CornerDownLeft size={11} /> 播放歌曲</span>
       </div>
     </div>
   </div>
@@ -351,19 +344,5 @@
     text-align: center;
     color: var(--text-3);
     font-size: 12.5px;
-  }
-  .foot {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 10px 18px;
-    border-top: 1px solid var(--line);
-    font-size: 10.5px;
-    color: var(--text-3);
-  }
-  .foot span {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
   }
 </style>

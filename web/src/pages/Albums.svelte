@@ -6,7 +6,6 @@
   import { api } from '../lib/api.js'
   import { notify } from '../lib/toast.svelte.js'
   import { playQueue } from '../lib/player.svelte.js'
-  import { fmtDuration } from '../lib/format.js'
 
   let albums = $state([])
   let sort = $state('newest')
@@ -80,15 +79,12 @@
     }
   }
 
-  const duration = $derived(albums.reduce((a, b) => a + (b.duration || 0), 0))
 </script>
 
 <div class="page rise">
   <header class="page-head">
     <div>
-      <div class="eyebrow">Collection</div>
       <h1 class="page-title">专辑</h1>
-      <div class="page-sub">{albums.length} 张专辑 · {fmtDuration(duration)}</div>
     </div>
     <div class="toolbar">
       <button class="btn" onclick={shuffleAll} disabled={!albums.length}>
@@ -114,7 +110,7 @@
   {#if loading && !albums.length}
     <div class="loading">正在载入…</div>
   {:else if !albums.length}
-    <EmptyState icon={Disc3} title="还没有专辑" desc="上传带标签的音乐后，专辑会自动生成。" />
+    <EmptyState icon={Disc3} title="还没有专辑" />
   {:else}
     <div class="grid-albums">
       {#each albums as album (album.id)}

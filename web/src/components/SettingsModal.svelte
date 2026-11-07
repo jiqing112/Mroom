@@ -221,7 +221,6 @@
     >
       <aside class="side">
         <div class="side-head">
-          <div class="eyebrow">Advanced</div>
           <h2>设置</h2>
         </div>
         <button class="s-tab" class:active={tab === 'overview'} onclick={() => (tab = 'overview')}>
@@ -257,7 +256,6 @@
           <div class="pane">
             <header class="pane-head">
               <div>
-                <div class="eyebrow">Overview</div>
                 <h3>音乐库概览</h3>
               </div>
               {#if isAdmin}
@@ -307,35 +305,16 @@
                 <div class="bar"><i style={`width:${scan.running ? progress : 100}%`}></i></div>
               </div>
             {/if}
-
-            <div class="notes">
-              <h4>关于 Mrome</h4>
-              <p>
-                一个自托管的私人音乐库：上传文件、自动解析标签、按专辑与艺术家归档，并以 Subsonic
-                协议对外提供浏览与流式播放。网页端使用玻璃拟态与随封面流动的极光背景。
-              </p>
-              <p class="faint">
-                右上角齿轮图标（或双击左上角 Logo）可随时回到这里；所有设置在本地 SQLite 中保存，无需外部服务。
-              </p>
-            </div>
           </div>
         {:else if tab === 'appearance'}
           <div class="pane">
             <header class="pane-head">
               <div>
-                <div class="eyebrow">Rendering</div>
                 <h3>外观与性能</h3>
               </div>
             </header>
 
             <div class="perf-card glass">
-              <div class="perf-title">渲染模式</div>
-              <p class="perf-desc">
-                完整效果包含极光动画、毛玻璃、封面模糊与循环动效。流畅模式会把这些逐帧重绘的
-                效果换成静态配色，播放音频本身几乎不占用 GPU；静止模式在此之上再停止黑胶与均衡器
-                动画，适合远程桌面、核显或需要极致省电的场景。
-              </p>
-
               <div class="seg" role="group" aria-label="渲染模式">
                 <button class="seg-btn" class:active={perf.mode === 'auto'} onclick={() => setPerfMode('auto')}>
                   自动
@@ -354,46 +333,21 @@
               <div class="perf-state">
                 {#if perf.static}
                   <span class="dot on"></span>
-                  <span>正在使用<strong>静止模式</strong><span class="faint">（已停止装饰动画）</span></span>
+                  <span>正在使用<strong>静止模式</strong></span>
                 {:else if perf.smooth}
                   <span class="dot on"></span>
-                  <span>
-                    正在使用<strong>流畅模式</strong>
-                    {#if perf.mode === 'auto' && perf.reasons.length}
-                      <span class="faint">（自动判定：{perf.reasons.join(' · ')}）</span>
-                    {/if}
-                  </span>
+                  <span>正在使用<strong>流畅模式</strong></span>
                 {:else}
                   <span class="dot"></span>
                   <span>正在使用<strong>完整效果</strong></span>
                 {/if}
               </div>
-
-              <div class="perf-list">
-                <div class="perf-item"><span>极光背景</span><span>{perf.smooth ? '静态渐变' : 'Canvas 动画'}</span></div>
-                <div class="perf-item"><span>毛玻璃 / 背景模糊</span><span>{perf.smooth ? '关闭' : '开启'}</span></div>
-                <div class="perf-item"><span>封面模糊、光晕、噪点</span><span>{perf.smooth ? '关闭' : '开启'}</span></div>
-                <div class="perf-item"><span>黑胶旋转与均衡器</span><span>{perf.static ? '关闭' : perf.smooth ? '开启（合成层）' : '开启'}</span></div>
-              </div>
-            </div>
-
-            <div class="notes">
-              <h4>低配设备建议</h4>
-              <p>
-                如果播放时风扇转速升高、拖动进度条掉帧，或者远程桌面里画面卡顿，选「流畅模式」；
-                如果连黑胶旋转都希望停止，选「静止模式」。设置保存在本机浏览器，刷新后依然生效。
-              </p>
-              <p>
-                流畅模式下仍保留黑胶旋转与播放均衡器——它们是 <code>transform</code> 动画，
-                由合成层处理，不触发重绘，几乎不占 GPU。
-              </p>
             </div>
           </div>
         {:else if tab === 'library'}
           <div class="pane">
             <header class="pane-head">
               <div>
-                <div class="eyebrow">Storage</div>
                 <h3>音乐库</h3>
               </div>
               <button class="btn" onclick={startScan} disabled={scanning}>
@@ -405,7 +359,6 @@
               <div class="field">
                 <div class="label">音乐目录</div>
                 <div class="value mono">{data?.musicDir || '—'}</div>
-                <div class="hint">将音频文件放入该目录后点击“扫描”，或通过上传页面上传。</div>
               </div>
               <div class="field">
                 <div class="label">数据库</div>
@@ -414,29 +367,18 @@
               <div class="field">
                 <div class="label">单文件大小上限</div>
                 <div class="value">{data?.maxUploadMB || 512} MB</div>
-                <div class="hint">可通过环境变量 MROME_MAX_UPLOAD_MB 调整。</div>
               </div>
               <div class="field">
                 <div class="label">支持格式</div>
                 <div class="value">MP3 · FLAC · M4A · WAV · OGG · OPUS · AAC · AIFF · WMA</div>
               </div>
             </div>
-
-            <div class="notes">
-              <h4>扫描行为</h4>
-              <p>
-                扫描会遍历音乐目录、读取 ID3 / Vorbis / MP4 标签与内嵌封面，自动归入艺术家与专辑；
-                无标签文件会进入“未知艺术家 / 未知专辑”。若目录中存在 cover.jpg，会作为专辑封面。
-              </p>
-              <p class="faint">删除的音频文件会在下次扫描时从库中移除，不会删除磁盘文件。</p>
-            </div>
           </div>
         {:else if tab === 'users'}
           <div class="pane">
             <header class="pane-head">
               <div>
-                <div class="eyebrow">Accounts</div>
-                <h3>用户管理</h3>
+                <h3>用户</h3>
               </div>
             </header>
 
@@ -446,10 +388,6 @@
                   免登录访问
                   {#if data?.guestMode}<span class="tag"><Unlock size={11} /> 已开启</span>{/if}
                 </div>
-                <p class="guest-desc">
-                  开启后，任何人打开网页都会以「访客」身份直接进入，可以浏览、搜索、播放与收藏，
-                  但不能上传、扫描或管理用户。关闭后必须登录才能访问。
-                </p>
                 {#if !data?.canLogin}
                   <p class="guest-warn">还没有管理员账号，请先创建一个管理员再关闭免登录。</p>
                 {/if}
@@ -489,7 +427,6 @@
             </div>
 
             <div class="new-user glass">
-              <div class="eyebrow">New account</div>
               <div class="nu-grid">
                 <input placeholder="用户名" bind:value={newUser.username} autocomplete="off" />
                 <input placeholder="密码（至少 3 位）" type="password" bind:value={newUser.password} autocomplete="new-password" />
@@ -507,7 +444,6 @@
           <div class="pane">
             <header class="pane-head">
               <div>
-                <div class="eyebrow">Subsonic</div>
                 <h3>客户端连接</h3>
               </div>
               <span class="status"><i></i> 服务运行中</span>
@@ -534,7 +470,7 @@
               </div>
               <div class="conn-row">
                 <div class="conn-label">密码</div>
-                <div class="conn-value faint">你的登录密码（客户端使用 token 认证）</div>
+                <div class="conn-value faint">你的登录密码</div>
               </div>
               {#if apiKey}
                 <div class="conn-row">
@@ -546,27 +482,18 @@
                 </div>
               {/if}
             </div>
-            <p class="conn-note">
-              客户端（音流、DSub、Symfonium 等）的「服务器地址」只填上面的主机地址，<code>/rest</code>
-              由客户端自己拼接；多写一段会变成 <code>/rest/rest/ping.view</code> 而连不上。
-            </p>
 
             {#if qrSvg}
               <div class="qr-card glass">
                 <div class="qr-box">{@html qrSvg}</div>
                 <div class="qr-text">
                   <div class="qr-title">扫码在手机上打开</div>
-                  <p class="qr-desc">
-                    手机与服务器在同一局域网时，用相机或微信扫一下即可打开网页播放器，
-                    免去手输 IP。扫码打不开通常是手机连了别的 Wi-Fi。
-                  </p>
                   <div class="qr-url mono">{base}</div>
                 </div>
               </div>
             {/if}
 
             <div class="proto glass">
-              <div class="proto-head">支持的客户端协议</div>
               <div class="proto-row">
                 <span class="proto-name">Subsonic / OpenSubsonic</span>
                 <span class="proto-addr mono">{base}/rest</span>
@@ -600,28 +527,6 @@
                   </button>
                 </div>
               {/if}
-              <p class="proto-note">
-                用户名密码与网页登录相同。Jellyfin / Emby 需要在客户端里选择对应类型；
-                Plex 客户端通常要登录 Plex 账号，只有支持「手动地址 + Token」的版本能直连本机。
-              </p>
-            </div>
-
-            <div class="notes">
-              <h4>兼容性说明</h4>
-              <p>
-                已实现 ping、getArtists、getArtist、getAlbum、getSong、getAlbumList2、search3、stream（支持
-                Range / 206）、getCoverArt、歌单增删改查、star / unstar、setRating、scrobble 等核心端点；
-                视频、jukebox 与聊天类接口返回标准“数据未找到”错误。
-              </p>
-              <div class="chips">
-                <span class="chip-tag">OpenSubsonic</span>
-                <span class="chip-tag">apiKeyAuthentication</span>
-                <span class="chip-tag">songLyrics</span>
-                <span class="chip-tag">CORS 已开启</span>
-              </div>
-              <p class="faint mono curl">
-                curl "{base}/rest/ping.view?u={auth.user?.username}&amp;t=...&amp;s=...&amp;v=1.16.1&amp;c=test&amp;f=json"
-              </p>
             </div>
           </div>
         {/if}
@@ -792,23 +697,9 @@
     background: linear-gradient(90deg, var(--accent), var(--accent-2));
     transition: width 0.4s var(--ease);
   }
-  .notes {
-    margin-top: 22px;
-  }
   .perf-card {
     border-radius: 18px;
     padding: 20px 20px 18px;
-  }
-  .perf-title {
-    font-size: 13.5px;
-    font-weight: 500;
-    letter-spacing: -0.01em;
-  }
-  .perf-desc {
-    margin: 8px 0 16px;
-    font-size: 12px;
-    line-height: 1.75;
-    color: var(--text-2);
   }
   .seg {
     display: grid;
@@ -862,38 +753,6 @@
     background: var(--accent);
     box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.18);
   }
-  .perf-list {
-    margin-top: 14px;
-    padding-top: 14px;
-    border-top: 1px solid var(--line);
-    display: flex;
-    flex-direction: column;
-    gap: 7px;
-  }
-  .perf-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 11.5px;
-    color: var(--text-3);
-  }
-  .perf-item span:last-child {
-    color: var(--text-2);
-    font-variant-numeric: tabular-nums;
-  }
-  .notes h4 {
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    margin: 0 0 8px;
-    color: var(--text-2);
-  }
-  .notes p {
-    font-size: 12.5px;
-    line-height: 1.85;
-    color: var(--text-2);
-    margin: 0 0 8px;
-  }
   .field-list {
     display: flex;
     flex-direction: column;
@@ -915,11 +774,6 @@
     margin-top: 6px;
     font-size: 13px;
     word-break: break-all;
-  }
-  .field .hint {
-    margin-top: 5px;
-    font-size: 11px;
-    color: var(--text-3);
   }
   .mono {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -944,13 +798,6 @@
     font-size: 13.5px;
     font-weight: 500;
     letter-spacing: -0.01em;
-  }
-  .guest-desc {
-    margin: 7px 0 0;
-    font-size: 12px;
-    line-height: 1.7;
-    color: var(--text-2);
-    max-width: 46ch;
   }
   .guest-warn {
     margin: 7px 0 0;
@@ -1060,7 +907,6 @@
     grid-template-columns: 1fr 1fr auto auto;
     gap: 8px;
     align-items: center;
-    margin-top: 10px;
   }
   input[type='password'],
   input:not([type]) {
@@ -1115,20 +961,6 @@
     font-size: 12.5px;
     word-break: break-all;
   }
-  .conn-note {
-    margin: 10px 2px 18px;
-    font-size: 11.5px;
-    line-height: 1.75;
-    color: var(--text-3);
-  }
-  .conn-note code {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 11px;
-    padding: 1px 5px;
-    border-radius: 5px;
-    background: var(--glass-2);
-    color: var(--text-2);
-  }
   .qr-card {
     display: flex;
     align-items: center;
@@ -1161,13 +993,6 @@
     font-weight: 500;
     letter-spacing: -0.01em;
   }
-  .qr-desc {
-    margin: 7px 0 10px;
-    font-size: 12px;
-    line-height: 1.7;
-    color: var(--text-2);
-    max-width: 46ch;
-  }
   .qr-url {
     font-size: 11.5px;
     color: var(--text-3);
@@ -1191,12 +1016,6 @@
     border-radius: 18px;
     padding: 16px 18px;
     margin-bottom: 18px;
-  }
-  .proto-head {
-    font-size: 13px;
-    font-weight: 500;
-    letter-spacing: -0.01em;
-    margin-bottom: 10px;
   }
   .proto-row {
     display: flex;
@@ -1232,34 +1051,6 @@
     font-size: 11px;
     color: var(--text-2);
     word-break: break-all;
-  }
-  .proto-note {
-    margin: 10px 0 0;
-    font-size: 11.5px;
-    line-height: 1.75;
-    color: var(--text-3);
-  }
-  .chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin: 12px 0;
-  }
-  .chip-tag {
-    font-size: 10px;
-    padding: 3px 9px;
-    border-radius: 999px;
-    border: 1px solid var(--line);
-    color: var(--text-2);
-    background: var(--glass);
-  }
-  .curl {
-    padding: 10px 12px;
-    border-radius: 10px;
-    background: var(--bg);
-    border: 1px solid var(--line);
-    overflow-x: auto;
-    white-space: nowrap;
   }
   @media (max-width: 760px) {
     .overlay {

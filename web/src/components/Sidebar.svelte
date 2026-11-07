@@ -1,14 +1,11 @@
 <script>
-  import { Home, Music2, Heart, Disc3, Users, ListMusic, UploadCloud, LogOut, LogIn, Radio, History } from 'lucide-svelte'
+  import { Home, Music2, Heart, Disc3, Users, ListMusic, UploadCloud, LogOut, LogIn, History } from 'lucide-svelte'
   import { route } from '../lib/router.svelte.js'
   import { auth, loadMe, logout } from '../lib/auth.svelte.js'
   import { openSettings } from '../lib/ui.svelte.js'
   import { navigate } from '../lib/router.svelte.js'
   import { stop } from '../lib/player.svelte.js'
-  import { fmtDuration } from '../lib/format.js'
   import Link from './Link.svelte'
-
-  let { stats = null } = $props()
 
   const items = $derived([
     { href: '/', label: '首页', icon: Home, name: 'home' },
@@ -48,7 +45,6 @@
     </div>
     <div class="brand-text">
       <div class="wordmark">MROME</div>
-      <div class="tagline">私人音乐库</div>
     </div>
   </div>
 
@@ -64,28 +60,13 @@
 
   <div class="grow"></div>
 
-  <div class="stat-card glass">
-    <div class="stat-head">
-      <span class="eyebrow">Library</span>
-      <Radio size={13} strokeWidth={1.6} class="live" />
-    </div>
-    <div class="stat-main">
-      <span class="num">{stats?.songs ?? '—'}</span>
-      <span class="unit">首曲目</span>
-    </div>
-    <div class="stat-sub">{stats?.albums ?? 0} 张专辑 · {fmtDuration(stats?.duration)}</div>
-    <div class="stat-foot">
-      <span class="badge"><i></i> Subsonic 1.16.1</span>
-    </div>
-  </div>
-
   <div class="user">
     <div class="avatar">{auth.user?.username?.slice(0, 1).toUpperCase() || '?'}</div>
     <div class="user-meta">
       <div class="user-name">{auth.user?.username}</div>
-      <div class="user-role">
-        {auth.user?.guest ? '免登录访客' : auth.user?.isAdmin ? '管理员' : '听众'}
-      </div>
+      {#if !auth.user?.guest}
+        <div class="user-role">{auth.user?.isAdmin ? '管理员' : '听众'}</div>
+      {/if}
     </div>
     {#if auth.user?.guest}
       {#if auth.canLogin}
@@ -158,12 +139,6 @@
     letter-spacing: 0.28em;
     line-height: 1.1;
   }
-  .tagline {
-    font-size: 10px;
-    letter-spacing: 0.16em;
-    color: var(--text-3);
-    margin-top: 3px;
-  }
   .nav {
     display: flex;
     flex-direction: column;
@@ -211,60 +186,6 @@
   }
   .grow {
     flex: 1;
-  }
-  .stat-card {
-    border-radius: 18px;
-    padding: 14px 15px 12px;
-  }
-  .stat-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 10px;
-  }
-  :global(.live) {
-    color: #4ade80;
-  }
-  .stat-main {
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
-  }
-  .num {
-    font-size: 26px;
-    font-weight: 300;
-    letter-spacing: -0.03em;
-    font-variant-numeric: tabular-nums;
-  }
-  .unit {
-    font-size: 11px;
-    color: var(--text-3);
-  }
-  .stat-sub {
-    font-size: 11px;
-    color: var(--text-2);
-    margin-top: 2px;
-  }
-  .stat-foot {
-    margin-top: 12px;
-    padding-top: 10px;
-    border-top: 1px solid var(--line);
-  }
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 9.5px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--text-2);
-  }
-  .badge i {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: #4ade80;
-    box-shadow: 0 0 8px #4ade80;
   }
   .user {
     display: flex;

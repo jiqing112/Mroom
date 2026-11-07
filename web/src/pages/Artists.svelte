@@ -36,9 +36,7 @@
 <div class="page rise">
   <header class="page-head">
     <div>
-      <div class="eyebrow">People</div>
       <h1 class="page-title">艺术家</h1>
-      <div class="page-sub">{artists.length} 位艺术家</div>
     </div>
     <div class="search-mini">
       <Search size={14} strokeWidth={1.7} />
@@ -49,7 +47,7 @@
   {#if loading && !artists.length}
     <div class="loading">正在载入…</div>
   {:else if !filtered.length}
-    <EmptyState icon={Users} title={q ? '没有匹配的艺术家' : '还没有艺术家'} desc={q ? '换个关键词试试。' : '上传音乐后，艺术家会自动整理到这里。'} />
+    <EmptyState icon={Users} title={q ? '没有匹配的艺术家' : '还没有艺术家'} desc={q ? '换个关键词试试。' : ''} />
   {:else}
     <div class="grid-artists">
       {#each filtered as artist (artist.id)}

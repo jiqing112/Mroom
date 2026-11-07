@@ -5,7 +5,7 @@
   import SongRow from '../components/SongRow.svelte'
   import Link from '../components/Link.svelte'
   import { api } from '../lib/api.js'
-  import { playQueue, shuffleAll, currentTrack, player } from '../lib/player.svelte.js'
+  import { playQueue, shuffleAll } from '../lib/player.svelte.js'
   import { fmtDuration, fmtCount } from '../lib/format.js'
   import { notify } from '../lib/toast.svelte.js'
   import { auth } from '../lib/auth.svelte.js'
@@ -15,8 +15,6 @@
   let loading = $state(true)
   let editOpen = $state(false)
   let editSong = $state(null)
-
-  const isCurrentAlbum = $derived(album && currentTrack()?.albumId === album.id)
 
   async function load() {
     loading = true
@@ -90,11 +88,11 @@
         <Cover id={album.id} alt={album.name} rounded="rounded-[20px]" class="cover" eager sizes="(max-width: 760px) 56vw, 300px" />
       </div>
       <div class="info">
-        <div class="eyebrow">Album {#if album.genre}· {album.genre}{/if}</div>
         <h1 class="title-tight">{album.name}</h1>
         <div class="meta">
           <Link href={`/artists/${album.artistId}`} class="al-artist">{album.artist}</Link>
           {#if album.year}<span class="sep">·</span><span>{album.year}</span>{/if}
+          {#if album.genre}<span class="sep">·</span><span>{album.genre}</span>{/if}
           <span class="sep">·</span><span>{fmtCount(album.songCount)}</span>
           <span class="sep">·</span><span>{fmtDuration(album.duration)}</span>
         </div>
@@ -113,10 +111,6 @@
     </header>
 
     <section class="tracks">
-      <div class="tracks-head">
-        <span class="eyebrow">Tracks</span>
-        {#if isCurrentAlbum}<span class="now">正在播放此专辑</span>{/if}
-      </div>
       {#each album.songs as song, i (song.id)}
         <div class="track-wrap">
           <SongRow
@@ -198,7 +192,7 @@
   .title-tight {
     font-size: clamp(2rem, 4.4vw, 3.6rem);
     font-weight: 500;
-    margin: 12px 0 14px;
+    margin: 0 0 14px;
     overflow-wrap: anywhere;
   }
   .meta {
@@ -231,18 +225,7 @@
     display: flex;
     flex-direction: column;
     gap: 1px;
-  }
-  .tracks-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 12px 10px;
-    border-bottom: 1px solid var(--line);
-    margin-bottom: 8px;
-  }
-  .now {
-    font-size: 10.5px;
-    color: var(--accent);
+    margin-top: 34px;
   }
   .track-wrap {
     position: relative;

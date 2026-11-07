@@ -22,20 +22,6 @@
     return () => scroller.removeEventListener('scroll', sync)
   })
 
-  const labels = {
-    home: 'Overview',
-    songs: 'All tracks',
-    favorites: 'Favorites',
-    albums: 'Albums',
-    artists: 'Artists',
-    playlists: 'Playlists',
-    playlist: 'Playlist',
-    album: 'Album',
-    artist: 'Artist',
-    upload: 'Upload',
-    settings: 'Settings'
-  }
-
   const mobileItems = $derived([
     { href: '/', icon: Home, name: 'home', label: '首页' },
     { href: '/songs', icon: Music2, name: 'songs', label: '歌曲' },
@@ -51,19 +37,18 @@
   <div class="topbar-inner">
   <div class="left">
     <span class="mark-mobile">M</span>
-    <span class="eyebrow">{labels[route.name] || 'Mrome'}</span>
   </div>
   <div class="right">
     <button class="search-trigger" onclick={openSearch} aria-label="搜索">
       <Search size={15} strokeWidth={1.7} />
-      <span class="hint">搜索歌曲、专辑、艺术家</span>
+      <span class="hint">搜索</span>
       <kbd>⌘K</kbd>
     </button>
     <button
       class="icon-btn settings-btn"
       onclick={openSettings}
       aria-label="打开设置"
-      title="设置 · 外观与性能、音乐库、账号"
+      title="设置"
     >
       <Settings size={16} strokeWidth={1.6} />
     </button>
@@ -72,15 +57,11 @@
       class:active={perf.smooth}
       onclick={() => setPerfMode(perf.smooth ? 'full' : 'smooth')}
       aria-label={perf.smooth ? '切换到完整效果' : '切换到流畅模式'}
-      title={perf.static
-        ? '静止模式已开启 · 点击恢复完整效果'
-        : perf.smooth
-          ? '流畅模式已开启 · 点击恢复完整效果'
-          : '流畅模式 · 关闭动效与模糊'}
+      title="性能模式"
     >
       <Gauge size={16} strokeWidth={1.6} />
     </button>
-    <button class="icon-btn" onclick={toggleTheme} aria-label="切换主题" title="切换亮/暗模式">
+    <button class="icon-btn" onclick={toggleTheme} aria-label="切换主题" title="主题">
       {#if theme.mode === 'dark'}
         <Sun size={16} strokeWidth={1.6} />
       {:else}

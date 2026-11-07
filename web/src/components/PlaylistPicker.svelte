@@ -109,7 +109,7 @@
         {#if loading}
           <div class="hint">正在载入歌单…</div>
         {:else if !playlists.length}
-          <div class="hint">还没有歌单，在下面创建一个。</div>
+          <div class="hint">还没有歌单</div>
         {:else}
           {#each playlists as p (p.id)}
             <button class="row" onclick={() => addTo(p)} disabled={!!busy}>

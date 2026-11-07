@@ -32,9 +32,7 @@
 <div class="page rise">
   <header class="page-head">
     <div>
-      <div class="eyebrow">History</div>
       <h1 class="page-title">最近播放</h1>
-      <div class="page-sub">{songs.length} 首 · 网页与客户端共用同一份记录</div>
     </div>
     {#if songs.length}
       <button class="btn btn-primary" onclick={() => playQueue(songs, 0)}>
@@ -46,11 +44,7 @@
   {#if loading && !songs.length}
     <div class="loading">正在载入…</div>
   {:else if !songs.length}
-    <EmptyState
-      icon={History}
-      title="还没有播放记录"
-      desc="播放过的歌曲会按时间倒序出现在这里，用网页或客户端播放都算。"
-    />
+    <EmptyState icon={History} title="还没有播放记录" />
   {:else}
     <div class="list">
       {#each songs as song, i (song.id)}
