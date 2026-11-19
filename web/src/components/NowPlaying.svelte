@@ -97,6 +97,46 @@
     lyricsEl.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
   })
 
+  let stageEl = $state(null)
+  let lastFocus = null
+
+  // While the modal stage is open, keyboard focus must live inside it: move it
+  // in on open, keep Tab cycling within the dialog, and hand focus back on
+  // close so it does not land on <body> behind the overlay.
+  $effect(() => {
+    if (!ui.stageOpen) return
+    lastFocus = document.activeElement
+    queueMicrotask(() => stageEl?.focus())
+    return () => {
+      if (lastFocus instanceof HTMLElement) lastFocus.focus()
+      lastFocus = null
+    }
+  })
+
+  function trapFocus(e) {
+    if (e.key !== 'Tab' || !stageEl) return
+    const list = Array.from(
+      stageEl.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+    ).filter((el) => !el.disabled && el.offsetParent !== null)
+    if (!list.length) {
+      e.preventDefault()
+      return
+    }
+    const first = list[0]
+    const last = list[list.length - 1]
+    const activeEl = document.activeElement
+    if (!stageEl.contains(activeEl)) {
+      e.preventDefault()
+      first.focus()
+    } else if (e.shiftKey && activeEl === first) {
+      e.preventDefault()
+      last.focus()
+    } else if (!e.shiftKey && activeEl === last) {
+      e.preventDefault()
+      first.focus()
+    }
+  }
+
   function onKey(e) {
     if (e.key === 'Escape') closeStage()
   }
@@ -155,11 +195,14 @@
 {#if ui.stageOpen && track}
   <div
     class="stage"
+    bind:this={stageEl}
+    tabindex="-1"
     transition:fade={{ duration: 260 }}
     style={`--drag:${dragY}px`}
     role="dialog"
     aria-modal="true"
     aria-label="正在播放"
+    onkeydown={trapFocus}
   >
     <div class="bg" aria-hidden="true">
       <Cover id={track.albumId || track.coverArt} alt="" rounded="none" class="bg-img" eager sizes="320px" />
@@ -362,6 +405,11 @@
     background: #06060a;
     isolation: isolate;
   }
+  /* The stage receives programmatic focus for the focus trap; the container
+   * itself must not paint a focus ring. */
+  .stage:focus {
+    outline: none;
+  }
   :global([data-theme='light']) .stage {
     background: #f1eee8;
   }
@@ -531,7 +579,7 @@
   }
   .panel {
     height: min(70vh, 660px);
-    border-radius: 28px;
+    border-radius: var(--r-xl);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -663,7 +711,7 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    border-radius: 12px;
+    border-radius: var(--r-md);
     border: 1px solid transparent;
     transition: background 0.2s var(--ease);
   }
@@ -789,7 +837,7 @@
     .panel {
       height: 42vh;
       min-height: 280px;
-      border-radius: 22px;
+      border-radius: var(--r-lg);
     }
     .lyrics,
     .queue {

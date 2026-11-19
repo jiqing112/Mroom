@@ -146,7 +146,7 @@
   .layer {
     position: absolute;
     inset: 0;
-    border-radius: 14px;
+    border-radius: var(--r-md);
     background: var(--glass-2);
     border: 1px solid var(--line);
     transition: transform 0.45s var(--ease);
@@ -235,7 +235,7 @@
     place-items: center;
     aspect-ratio: 1;
     margin-bottom: 12px;
-    border-radius: 14px;
+    border-radius: var(--r-md);
     border: 1px dashed var(--line-strong);
     background: var(--glass);
     color: var(--text-3);
@@ -254,11 +254,6 @@
     display: block;
     margin-top: 3px;
     font-size: 11px;
-    color: var(--text-3);
-  }
-  .loading {
-    padding: 60px 0;
-    text-align: center;
     color: var(--text-3);
   }
   @media (max-width: 860px) {

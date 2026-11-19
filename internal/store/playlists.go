@@ -109,8 +109,15 @@ func (s *Store) addSongs(playlistID string, songIDs []string) error {
 		if err := s.db.QueryRow(`SELECT COUNT(*) FROM songs WHERE id=?`, sid).Scan(&exists); err != nil || exists == 0 {
 			continue
 		}
+		// The primary key keeps one entry per song, so a repeat in the request
+		// is a no-op — it must not burn a position value and open a gap.
+		var present int
+		_ = s.db.QueryRow(`SELECT COUNT(*) FROM playlist_songs WHERE playlist_id=? AND song_id=?`, playlistID, sid).Scan(&present)
+		if present > 0 {
+			continue
+		}
 		pos++
-		if _, err := s.db.Exec(`INSERT OR IGNORE INTO playlist_songs(playlist_id,song_id,position)
+		if _, err := s.db.Exec(`INSERT INTO playlist_songs(playlist_id,song_id,position)
 			VALUES(?,?,?)`, playlistID, sid, pos); err != nil {
 			return err
 		}

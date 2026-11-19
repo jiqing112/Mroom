@@ -1,6 +1,7 @@
 package config
 
 import (
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -203,6 +204,12 @@ func Load() Config {
 		}
 	}
 	y := loadYAML(findConfigFile())
+	if custom := strings.TrimSpace(os.Getenv("MROME_CONFIG")); custom != "" && y == nil {
+		// An explicitly configured file that cannot be read must not be
+		// silently ignored — a typo in MROME_CONFIG would otherwise leave the
+		// instance running on defaults with no hint why.
+		log.Printf("警告：MROME_CONFIG 指向的配置文件不可读: %s（已回退到默认配置）", custom)
+	}
 	dataDir := anchor(pick(y, "MROME_DATA_DIR", "data_dir", "./data"))
 	c := Config{
 		Addr:     pick(y, "MROME_ADDR", "addr", ":4533"),
@@ -217,7 +224,7 @@ func Load() Config {
 		AdminUser:         pickRaw(y, "MROME_ADMIN_USER", "admin_user", "admin"),
 		AdminPassword:     pickRaw(y, "MROME_ADMIN_PASSWORD", "admin_password", "admin"),
 		MaxUploadMB:       int64(atoi(pick(y, "MROME_MAX_UPLOAD_MB", "max_upload_mb", "512"), 512)),
-		ScanOnStart:       pick(y, "MROME_SCAN_ON_START", "scan_on_start", "true") != "false",
+		ScanOnStart:       boolish(pick(y, "MROME_SCAN_ON_START", "scan_on_start", "true")),
 		ScanIntervalHours: atoi(pick(y, "MROME_SCAN_INTERVAL_HOURS", "scan_interval_hours", "6"), 6),
 	}
 	c.GuestMode = c.AdminUser == "" || c.AdminPassword == ""
@@ -233,6 +240,17 @@ func atoi(s string, def int) int {
 		return def
 	}
 	return n
+}
+
+// boolish parses the spellings accepted for boolean options. Only explicit
+// negative spellings disable a feature; anything else — including a bare
+// `scan_on_start:` — enables it.
+func boolish(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "0", "false", "no", "off", "n", "disabled":
+		return false
+	}
+	return true
 }
 
 func (c Config) EnsureDirs() error {

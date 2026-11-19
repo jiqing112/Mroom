@@ -104,7 +104,7 @@
     padding: 2px 8px;
     cursor: default;
     user-select: none;
-    border-radius: 12px;
+    border-radius: var(--r-md);
     transition: background 0.3s var(--ease);
   }
   .brand:hover {
@@ -150,7 +150,7 @@
     gap: 12px;
     height: 40px;
     padding: 0 12px;
-    border-radius: 11px;
+    border-radius: var(--r-sm);
     color: var(--text-2);
     font-size: 13.5px;
     font-weight: 450;

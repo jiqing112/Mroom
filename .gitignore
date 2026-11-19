@@ -26,11 +26,13 @@ __pycache__/
 # tooling
 /.tools/
 /.workbuddy-ai/
+/.zcode/
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
 *.log
+mrome.exe~
 
 # local environment
 .env

@@ -15,46 +15,52 @@ import (
 
 type jwtClaims struct {
 	UID string `json:"uid"`
+	Ver int64  `json:"ver,omitempty"`
 	Iat int64  `json:"iat"`
 	Exp int64  `json:"exp"`
 }
 
-// SignJWT issues an HS256 token carrying the user id in Navidrome's "uid" claim.
-func SignJWT(secret []byte, uid string, ttl time.Duration) string {
+// SignJWT issues an HS256 token carrying the user id in Navidrome's "uid"
+// claim plus the account's session version, so changing a password revokes
+// every token that was minted before it — the same contract the web cookie
+// already honours.
+func SignJWT(secret []byte, uid string, sessionVersion int64, ttl time.Duration) string {
 	head := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"HS256","typ":"JWT"}`))
 	now := time.Now().Unix()
-	payload, _ := json.Marshal(jwtClaims{UID: uid, Iat: now, Exp: now + int64(ttl.Seconds())})
+	payload, _ := json.Marshal(jwtClaims{UID: uid, Ver: sessionVersion, Iat: now, Exp: now + int64(ttl.Seconds())})
 	body := head + "." + base64.RawURLEncoding.EncodeToString(payload)
 	mac := hmac.New(sha256.New, secret)
 	mac.Write([]byte(body))
 	return body + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 }
 
-// ParseJWT verifies the signature and expiry and returns the user id.
-func ParseJWT(token string, secret []byte) (string, bool) {
+// ParseJWT verifies the signature and expiry and returns the user id and the
+// session version recorded in the token (0 for tokens issued by older builds
+// without the claim).
+func ParseJWT(token string, secret []byte) (string, int64, bool) {
 	parts := strings.Split(strings.TrimSpace(token), ".")
 	if len(parts) != 3 {
-		return "", false
+		return "", 0, false
 	}
 	body := parts[0] + "." + parts[1]
 	mac := hmac.New(sha256.New, secret)
 	mac.Write([]byte(body))
 	sig, err := base64.RawURLEncoding.DecodeString(parts[2])
 	if err != nil || !hmac.Equal(sig, mac.Sum(nil)) {
-		return "", false
+		return "", 0, false
 	}
 	raw, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
-		return "", false
+		return "", 0, false
 	}
 	var c jwtClaims
 	if err := json.Unmarshal(raw, &c); err != nil {
-		return "", false
+		return "", 0, false
 	}
 	if c.UID == "" || (c.Exp > 0 && c.Exp < time.Now().Unix()) {
-		return "", false
+		return "", 0, false
 	}
-	return c.UID, true
+	return c.UID, c.Ver, true
 }
 
 // BearerToken pulls a token out of "Authorization: Bearer x" or the

@@ -129,6 +129,11 @@ func (h *Handler) getAlbumList(r *http.Request, u *store.User, method string) (*
 		f.StarredOnly = true
 	case "byYear":
 		f.Sort = "byYear"
+		// The Subsonic API defines a fromYear > toYear range as reversed
+		// ("oldest first"); the store only knows >=/<=, so swap it here.
+		if fromYear > 0 && toYear > 0 && fromYear > toYear {
+			f.FromYear, f.ToYear = toYear, fromYear
+		}
 	case "byGenre":
 		f.Sort = "alphabetical"
 		if genre == "" {
@@ -194,9 +199,21 @@ func (h *Handler) search(r *http.Request, u *store.User, method string) (*Obj, e
 	songCount := util.Clamp(intParam(r, "songCount", 20), 0, 500)
 	offset := intParam(r, "offset", 0)
 
-	artists, _ := h.Store.SearchArtists(u.ID, q, artistCount)
-	albums, _ := h.Store.SearchAlbums(u.ID, q, albumCount)
-	songs, _ := h.Store.ListSongs(u.ID, store.SongFilter{Search: q, Sort: "title", Limit: songCount, Offset: offset})
+	// A count of 0 means "omit this section" per the Subsonic API. Passing 0
+	// down as a limit would mean "unbounded" in the store and stream the whole
+	// library into one response.
+	var artists []store.Artist
+	var albums []store.Album
+	var songs []store.Song
+	if artistCount > 0 {
+		artists, _ = h.Store.SearchArtists(u.ID, q, artistCount)
+	}
+	if albumCount > 0 {
+		albums, _ = h.Store.SearchAlbums(u.ID, q, albumCount)
+	}
+	if songCount > 0 {
+		songs, _ = h.Store.ListSongs(u.ID, store.SongFilter{Search: q, Sort: "title", Limit: songCount, Offset: offset})
+	}
 
 	key := "searchResult3"
 	if method == "search2" {
@@ -230,14 +247,30 @@ func (h *Handler) getStarred(r *http.Request, u *store.User, method string) (*Ob
 	return NewObj().Set(key, o), nil
 }
 
+// resolveKind classifies a bare id for the star/rating endpoints: per the
+// Subsonic API, plain "id=" may carry a song, an album or an artist id, and a
+// rating recorded under the wrong item type would silently vanish.
+func (h *Handler) resolveKind(u *store.User, id string) string {
+	if _, err := h.Store.GetSong(u.ID, id); err == nil {
+		return "song"
+	}
+	if _, err := h.Store.GetAlbum(u.ID, id, false); err == nil {
+		return "album"
+	}
+	if _, err := h.Store.GetArtist(u.ID, id); err == nil {
+		return "artist"
+	}
+	return "song"
+}
+
 func (h *Handler) setStar(r *http.Request, u *store.User, star bool) (*Obj, error) {
-	q := r.URL.Query()
+	q := formParams(r)
 	any := false
 	for _, id := range q["id"] {
 		if id == "" {
 			continue
 		}
-		if err := h.Store.SetStar(u.ID, id, "song", star); err != nil {
+		if err := h.Store.SetStar(u.ID, id, h.resolveKind(u, id), star); err != nil {
 			return nil, err
 		}
 		any = true
@@ -275,14 +308,14 @@ func (h *Handler) setRating(r *http.Request, u *store.User) (*Obj, error) {
 	if err != nil {
 		return nil, fail(errMissingParam, "缺少参数 rating")
 	}
-	if err := h.Store.SetRating(u.ID, id, rating); err != nil {
+	if err := h.Store.SetRating(u.ID, id, h.resolveKind(u, id), rating); err != nil {
 		return nil, err
 	}
 	return NewObj(), nil
 }
 
 func (h *Handler) scrobble(r *http.Request, u *store.User) (*Obj, error) {
-	ids := r.URL.Query()["id"]
+	ids := formParams(r)["id"]
 	if len(ids) == 0 {
 		return nil, fail(errMissingParam, "缺少参数 id")
 	}

@@ -77,7 +77,15 @@
     const typing =
       el instanceof HTMLElement &&
       (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)
-    if (typing || !auth.user) return
+    // Buttons, links, sliders and similar controls consume Space (and the
+    // slider arrows) themselves; hijacking the keys would make focused
+    // controls impossible to activate with the keyboard.
+    const interactive =
+      el instanceof HTMLElement &&
+      (el.tagName === 'BUTTON' || el.tagName === 'A' || el.tagName === 'SELECT' ||
+        el.getAttribute?.('role') === 'button' || el.getAttribute?.('role') === 'slider' ||
+        el.closest?.('button, a, select, [role="button"], [role="slider"]'))
+    if (typing || interactive || !auth.user) return
 
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
       e.preventDefault()
@@ -104,9 +112,6 @@
       case 'ArrowLeft':
         e.preventDefault()
         seek(player.time - (e.shiftKey ? 30 : 5))
-        break
-      case 'ArrowUp':
-        e.preventDefault()
         break
       case 'm':
       case 'M':

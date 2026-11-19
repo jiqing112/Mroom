@@ -22,7 +22,7 @@
     text-align: center;
     padding: 56px 20px;
     border: 1px dashed var(--line-strong);
-    border-radius: 24px;
+    border-radius: var(--r-xl);
     background: var(--glass);
   }
   .mark {

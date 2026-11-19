@@ -88,6 +88,10 @@
       return
     }
     load()
+    // The modal can be force-unmounted (session expiry wipes the whole app
+    // tree) without ui.settingsOpen ever flipping false — return a teardown so
+    // the scan poller cannot outlive the component.
+    return () => stopPolling()
   })
 
   $effect(() => {
@@ -550,7 +554,7 @@
   .panel {
     width: min(960px, 96vw);
     height: min(700px, 88vh);
-    border-radius: 28px;
+    border-radius: var(--r-xl);
     display: grid;
     grid-template-columns: 210px minmax(0, 1fr);
     overflow: hidden;
@@ -579,7 +583,7 @@
     gap: 10px;
     height: 38px;
     padding: 0 10px;
-    border-radius: 10px;
+    border-radius: var(--r-sm);
     border: 1px solid transparent;
     background: transparent;
     color: var(--text-2);
@@ -637,7 +641,7 @@
     margin-bottom: 16px;
   }
   .stat {
-    border-radius: 16px;
+    border-radius: var(--r-md);
     padding: 14px 15px;
   }
   .stat .k {
@@ -658,7 +662,7 @@
     padding: 5px 0;
   }
   .scan-card {
-    border-radius: 18px;
+    border-radius: var(--r-lg);
     padding: 16px 18px;
     margin-bottom: 22px;
   }
@@ -698,7 +702,7 @@
     transition: width 0.4s var(--ease);
   }
   .perf-card {
-    border-radius: 18px;
+    border-radius: var(--r-lg);
     padding: 20px 20px 18px;
   }
   .seg {
@@ -706,14 +710,14 @@
     grid-template-columns: repeat(4, 1fr);
     gap: 4px;
     padding: 4px;
-    border-radius: 12px;
+    border-radius: var(--r-md);
     border: 1px solid var(--line);
     background: var(--glass);
   }
   .seg-btn {
     height: 34px;
     border: 1px solid transparent;
-    border-radius: 9px;
+    border-radius: var(--r-sm);
     background: none;
     color: var(--text-2);
     font-size: 12.5px;
@@ -761,7 +765,7 @@
   .field {
     padding: 14px 16px;
     border: 1px solid var(--line);
-    border-radius: 14px;
+    border-radius: var(--r-md);
     background: var(--glass);
   }
   .field .label {
@@ -785,7 +789,7 @@
     justify-content: space-between;
     gap: 16px;
     padding: 16px 18px;
-    border-radius: 18px;
+    border-radius: var(--r-lg);
     margin-bottom: 18px;
   }
   .guest-text {
@@ -855,7 +859,7 @@
     gap: 12px;
     padding: 10px 12px;
     border: 1px solid var(--line);
-    border-radius: 14px;
+    border-radius: var(--r-md);
     background: var(--glass);
   }
   .u-avatar {
@@ -899,7 +903,7 @@
     gap: 2px;
   }
   .new-user {
-    border-radius: 18px;
+    border-radius: var(--r-lg);
     padding: 16px;
   }
   .nu-grid {
@@ -912,7 +916,7 @@
   input:not([type]) {
     height: 38px;
     padding: 0 12px;
-    border-radius: 10px;
+    border-radius: var(--r-sm);
     border: 1px solid var(--line);
     background: var(--bg);
     color: var(--text);
@@ -934,7 +938,7 @@
   }
   .conn {
     border: 1px solid var(--line);
-    border-radius: 18px;
+    border-radius: var(--r-lg);
     overflow: hidden;
     background: var(--glass);
   }
@@ -966,7 +970,7 @@
     align-items: center;
     gap: 18px;
     padding: 16px 18px;
-    border-radius: 18px;
+    border-radius: var(--r-lg);
     margin-bottom: 20px;
   }
   /* The code has to keep dark modules on a light field in both themes, otherwise
@@ -976,7 +980,7 @@
     width: 132px;
     height: 132px;
     padding: 9px;
-    border-radius: 14px;
+    border-radius: var(--r-md);
     background: #ffffff;
     box-shadow: 0 8px 24px -14px rgba(0, 0, 0, 0.55);
   }
@@ -1013,7 +1017,7 @@
     box-shadow: 0 0 10px var(--ok);
   }
   .proto {
-    border-radius: 18px;
+    border-radius: var(--r-lg);
     padding: 16px 18px;
     margin-bottom: 18px;
   }

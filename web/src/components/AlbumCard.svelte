@@ -43,7 +43,7 @@
   }
   .art {
     position: relative;
-    border-radius: 14px;
+    border-radius: var(--r-md);
     overflow: hidden;
     aspect-ratio: 1;
     transition: transform 0.5s var(--ease), box-shadow 0.5s var(--ease);

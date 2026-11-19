@@ -79,7 +79,7 @@
   }
   .card {
     width: min(390px, 100%);
-    border-radius: 26px;
+    border-radius: var(--r-xl);
     padding: 34px 30px 28px;
     display: flex;
     flex-direction: column;
@@ -127,7 +127,7 @@
   }
   .field input {
     height: 46px;
-    border-radius: 12px;
+    border-radius: var(--r-md);
     border: 1px solid var(--line);
     background: var(--glass-2);
     color: var(--text);
@@ -143,7 +143,7 @@
   }
   .submit {
     height: 48px;
-    border-radius: 12px;
+    border-radius: var(--r-md);
     border: none;
     background: var(--text);
     color: var(--bg);
@@ -172,7 +172,7 @@
     background: color-mix(in srgb, var(--danger) 10%, transparent);
     border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
     padding: 9px 12px;
-    border-radius: 10px;
+    border-radius: var(--r-sm);
   }
   .hint {
     font-size: 10.5px;

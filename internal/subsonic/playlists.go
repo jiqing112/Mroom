@@ -54,7 +54,7 @@ func (h *Handler) getPlaylist(r *http.Request, u *store.User) (*Obj, error) {
 }
 
 func (h *Handler) createPlaylist(r *http.Request, u *store.User) (*Obj, error) {
-	q := r.URL.Query()
+	q := formParams(r)
 	name := param(r, "name")
 	songIDs := append([]string{}, q["songId"]...)
 	if len(songIDs) == 0 {
@@ -97,7 +97,7 @@ func (h *Handler) createPlaylist(r *http.Request, u *store.User) (*Obj, error) {
 }
 
 func (h *Handler) updatePlaylist(r *http.Request, u *store.User) (*Obj, error) {
-	q := r.URL.Query()
+	q := formParams(r)
 	id := param(r, "playlistId")
 	if id == "" {
 		return nil, fail(errMissingParam, "缺少参数 playlistId")

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -72,6 +73,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusNoContent)
 		return
+	}
+
+	// OpenSubsonic formPost (advertised via getOpenSubsonicExtensions): clients
+	// may POST the u/p/t/s handshake and command parameters as a form body
+	// instead of a query string. Parse it once here so every handler sees it.
+	if r.Method == http.MethodPost {
+		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+		_ = r.ParseForm()
 	}
 
 	method := strings.TrimPrefix(r.URL.Path, "/rest/")
@@ -222,7 +231,7 @@ func (h *Handler) route(w http.ResponseWriter, method string, r *http.Request, u
 // ---------------------------------------------------------------- auth
 
 func (h *Handler) authenticate(r *http.Request) (*store.User, error) {
-	q := r.URL.Query()
+	q := formParams(r)
 	apiKey := strings.TrimSpace(q.Get("apiKey"))
 	if apiKey == "" {
 		apiKey = strings.TrimSpace(r.Header.Get("X-API-Key"))
@@ -242,8 +251,8 @@ func (h *Handler) authenticate(r *http.Request) (*store.User, error) {
 		token = strings.TrimSpace(q.Get("jwt"))
 	}
 	if token != "" {
-		if uid, ok := util.ParseJWT(token, h.secret); ok {
-			if u, err := h.Store.GetUserByID(uid); err == nil {
+		if uid, ver, ok := util.ParseJWT(token, h.secret); ok {
+			if u, err := h.Store.GetUserByID(uid); err == nil && u.SessionVersion == ver {
 				return u, nil
 			}
 		}
@@ -316,7 +325,7 @@ func (h *Handler) writeEnvelope(w http.ResponseWriter, r *http.Request, body *Ob
 		resp.Set("error", NewObj().Set("code", code).Set("message", msg))
 	}
 
-	format := strings.ToLower(r.URL.Query().Get("f"))
+	format := strings.ToLower(formParams(r).Get("f"))
 	if format == "json" || format == "jsonp" {
 		payload := map[string]*Obj{"subsonic-response": resp}
 		var buf bytes.Buffer
@@ -324,7 +333,7 @@ func (h *Handler) writeEnvelope(w http.ResponseWriter, r *http.Request, body *Ob
 		enc.SetEscapeHTML(false)
 		_ = enc.Encode(payload)
 		if format == "jsonp" {
-			if cb := jsonpCallback(r.URL.Query().Get("callback")); cb != "" {
+			if cb := jsonpCallback(formParams(r).Get("callback")); cb != "" {
 				w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 				w.WriteHeader(http.StatusOK)
 				_, _ = w.Write([]byte(cb + "("))
@@ -470,12 +479,32 @@ func (h *Handler) artistList(artists []store.Artist) []*Obj {
 	return out
 }
 
+// formParams returns the request parameters: the URL query for every method,
+// plus a POSTed form body (OpenSubsonic formPost) when present.
+func formParams(r *http.Request) url.Values {
+	v := r.URL.Query()
+	if r.Method == http.MethodPost {
+		for k, vals := range r.PostForm {
+			v[k] = append(v[k], vals...)
+		}
+	}
+	return v
+}
+
 func param(r *http.Request, key string) string {
-	return strings.TrimSpace(r.URL.Query().Get(key))
+	return strings.TrimSpace(formParams(r).Get(key))
 }
 
 func intParam(r *http.Request, key string, def int) int {
-	return util.QueryInt(r, key, def)
+	v := param(r, key)
+	if v == "" {
+		return def
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return def
+	}
+	return n
 }
 
 func hexDecode(s string) ([]byte, error) {

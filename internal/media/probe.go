@@ -203,7 +203,7 @@ func xingFrames(b []byte) int {
 		}
 		return int(binary.BigEndian.Uint32(b[off+8 : off+12]))
 	}
-	if len(b) > 40 && string(b[36:40]) == "VBRI" {
+	if len(b) >= 36+18 && string(b[36:40]) == "VBRI" {
 		return int(binary.BigEndian.Uint32(b[36+14 : 36+18]))
 	}
 	return 0

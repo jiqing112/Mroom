@@ -15,6 +15,15 @@
   let loading = $state(true)
   let editOpen = $state(false)
   let editSong = $state(null)
+  let editEl = $state(null)
+
+  // The edit dialog is opened by a click, so focus stays outside it — pull
+  // focus in on open (Escape then works, and Tab starts from the dialog) and
+  // close it from a window-level handler like every other modal.
+  $effect(() => {
+    if (!editOpen) return
+    queueMicrotask(() => editEl?.focus())
+  })
 
   async function load() {
     loading = true
@@ -134,19 +143,25 @@
   {/if}
 </div>
 
+<svelte:window onkeydown={(e) => e.key === 'Escape' && editOpen && (editOpen = false)} />
+
 {#if editOpen && editSong}
-  <div class="modal" role="presentation" onclick={() => (editOpen = false)}>
+  <div
+    class="modal"
+    role="presentation"
+    onclick={(e) => {
+      // Only a click on the backdrop itself closes; clicks inside the dialog
+      // bubble here with a different target.
+      if (e.target === e.currentTarget) editOpen = false
+    }}
+  >
     <div
       class="dialog glass-deep"
+      bind:this={editEl}
       role="dialog"
       aria-modal="true"
       aria-label="编辑元数据"
       tabindex="-1"
-      onclick={(e) => e.stopPropagation()}
-      onkeydown={(e) => {
-        if (e.key === 'Escape') editOpen = false
-        e.stopPropagation()
-      }}
     >
       <h3>编辑元数据</h3>
       <label><span>标题</span><input bind:value={editSong.title} /></label>
@@ -265,12 +280,15 @@
   }
   .dialog {
     width: min(420px, 100%);
-    border-radius: 22px;
+    border-radius: var(--r-lg);
     padding: 24px;
     display: flex;
     flex-direction: column;
     gap: 12px;
     animation: rise 0.35s var(--ease) both;
+  }
+  .dialog:focus {
+    outline: none;
   }
   .dialog h3 {
     margin: 0 0 6px;
@@ -290,7 +308,7 @@
   }
   .dialog input {
     height: 38px;
-    border-radius: 10px;
+    border-radius: var(--r-sm);
     border: 1px solid var(--line);
     background: var(--bg);
     color: var(--text);

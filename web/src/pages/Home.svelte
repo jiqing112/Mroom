@@ -206,7 +206,7 @@
   }
   .hero {
     position: relative;
-    border-radius: 32px;
+    border-radius: var(--r-xl);
     overflow: hidden;
     border: 1px solid var(--line);
     background: linear-gradient(150deg, var(--glass-2), var(--glass));

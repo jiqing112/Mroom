@@ -244,6 +244,18 @@ func (s *Store) DeleteUser(id string) error {
 	if isAdmin == 1 && admins <= 1 {
 		return errors.New("不能删除唯一的管理员账号")
 	}
+	// User ids are derived from the username, so a future re-registration with
+	// the same name reuses the id: without this cleanup the new account would
+	// inherit the deleted one's stars, ratings and play history.
+	if _, err := s.db.Exec(`DELETE FROM playlist_songs WHERE playlist_id IN (SELECT id FROM playlists WHERE owner_id=?)`, id); err != nil {
+		return err
+	}
+	if _, err := s.db.Exec(`DELETE FROM playlists WHERE owner_id=?`, id); err != nil {
+		return err
+	}
+	if _, err := s.db.Exec(`DELETE FROM annotations WHERE user_id=?`, id); err != nil {
+		return err
+	}
 	_, err := s.db.Exec(`DELETE FROM users WHERE id=?`, id)
 	return err
 }

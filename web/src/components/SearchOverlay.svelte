@@ -234,7 +234,7 @@
   .panel {
     width: min(680px, 94vw);
     max-height: min(70vh, 640px);
-    border-radius: 24px;
+    border-radius: var(--r-xl);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -292,7 +292,7 @@
     gap: 12px;
     width: 100%;
     padding: 7px 10px;
-    border-radius: 12px;
+    border-radius: var(--r-md);
     border: 1px solid transparent;
     background: none;
     color: var(--text);

@@ -37,6 +37,11 @@ var apiInfo = map[string]any{
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Parameters arrive as urlencoded form bodies on POST; cap the body so one
+	// request cannot buffer unbounded data into memory.
+	if r.Method == http.MethodPost {
+		r.Body = http.MaxBytesReader(w, r.Body, 4<<20)
+	}
 	path := strings.TrimSuffix(r.URL.Path, "/")
 	switch {
 	case path == "/webapi/query.cgi":
@@ -90,7 +95,7 @@ func (s *Server) auth(w http.ResponseWriter, r *http.Request) {
 		fail(w, 401)
 		return
 	}
-	sid := util.SignJWT(s.secret, u.ID, 30*24*time.Hour)
+	sid := util.SignJWT(s.secret, u.ID, u.SessionVersion, 30*24*time.Hour)
 	ok(w, map[string]any{"sid": sid, "did": "", "is_portal_port": false})
 }
 
@@ -105,12 +110,12 @@ func (s *Server) user(r *http.Request) (*store.User, bool) {
 	if sid == "" {
 		return nil, false
 	}
-	uid, valid := util.ParseJWT(sid, s.secret)
+	uid, ver, valid := util.ParseJWT(sid, s.secret)
 	if !valid {
 		return nil, false
 	}
 	u, err := s.Store.GetUserByID(uid)
-	if err != nil {
+	if err != nil || u.SessionVersion != ver {
 		return nil, false
 	}
 	return u, true
@@ -136,18 +141,19 @@ func (s *Server) songs(w http.ResponseWriter, r *http.Request) {
 	albumName := first(r, "album")
 	artistName := first(r, "artist")
 
-	f := store.SongFilter{Limit: limit, Offset: offset, Search: first(r, "keyword")}
+	// The album/artist filters must be part of the SQL query: filtering after
+	// LIMIT/OFFSET would return wrong pages and a total that ignores them.
+	f := store.SongFilter{
+		Limit: limit, Offset: offset,
+		Search: first(r, "keyword"),
+		Album:  albumName,
+		Artist: artistName,
+	}
 	songs, _ := s.Store.ListSongs(u.ID, f)
 	total, _ := s.Store.CountSongsFiltered(u.ID, f)
 
 	out := make([]any, 0, len(songs))
 	for _, song := range songs {
-		if albumName != "" && !strings.EqualFold(song.Album, albumName) {
-			continue
-		}
-		if artistName != "" && !strings.EqualFold(song.Artist, artistName) {
-			continue
-		}
 		out = append(out, s.songDto(song))
 	}
 	ok(w, map[string]any{"total": total, "offset": offset, "songs": out})

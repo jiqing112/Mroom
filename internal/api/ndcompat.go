@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"mrome/internal/store"
 	"mrome/internal/util"
 )
 
@@ -50,7 +51,7 @@ func (s *Server) ndLogin(w http.ResponseWriter, r *http.Request) {
 		"username":          u.Username,
 		"name":              u.Username,
 		"isAdmin":           u.IsAdmin,
-		"token":             util.SignJWT(s.secret, u.ID, 30*24*time.Hour),
+		"token":             util.SignJWT(s.secret, u.ID, u.SessionVersion, 30*24*time.Hour),
 		"subsonicSalt":      salt,
 		"subsonicToken":     hex.EncodeToString(sum[:]),
 		"avatarUrl":         "",
@@ -93,14 +94,24 @@ func (s *Server) ndPlayQueue(w http.ResponseWriter, r *http.Request) {
 	util.WriteJSON(w, http.StatusOK, map[string]any{})
 }
 
-// ndCurrentUser resolves the JWT that a Navidrome-mode client presents.
-func (s *Server) ndCurrentUser(r *http.Request) (string, bool) {
+// ndCurrentUser resolves the JWT that a Navidrome-mode client presents into a
+// live user. Tokens issued before a password change carry an older session
+// version and are rejected, mirroring the web cookie contract.
+func (s *Server) ndCurrentUser(r *http.Request) (*store.User, bool) {
 	tok := util.BearerToken(r.Header.Get)
 	if tok == "" {
 		tok = strings.TrimSpace(r.URL.Query().Get("jwt"))
 	}
 	if tok == "" {
-		return "", false
+		return nil, false
 	}
-	return util.ParseJWT(tok, s.secret)
+	uid, ver, ok := util.ParseJWT(tok, s.secret)
+	if !ok {
+		return nil, false
+	}
+	u, err := s.Store.GetUserByID(uid)
+	if err != nil || u.SessionVersion != ver {
+		return nil, false
+	}
+	return u, true
 }

@@ -143,7 +143,7 @@
   }
   .panel {
     width: min(400px, 100%);
-    border-radius: 24px;
+    border-radius: var(--r-xl);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -196,7 +196,7 @@
     width: 100%;
     height: 40px;
     padding: 0 12px;
-    border-radius: 10px;
+    border-radius: var(--r-sm);
     border: 1px solid var(--line);
     background: var(--bg);
     color: var(--text);

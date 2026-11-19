@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -124,14 +125,20 @@ func Clamp(n, lo, hi int) int {
 	return n
 }
 
-// ClientKey identifies the caller for rate limiting: the first hop in
-// X-Forwarded-For when a reverse proxy is in front, otherwise the peer address.
+// ClientKey identifies the caller for rate limiting. A reverse proxy in front
+// of mrome is typically on the same host or the LAN, so X-Forwarded-For is
+// trusted only when the TCP peer is a loopback or private address — a direct
+// internet client cannot mint fresh identities by spoofing the header.
 func ClientKey(r *http.Request) string {
-	if v := r.Header.Get("X-Forwarded-For"); v != "" {
-		if i := strings.Index(v, ","); i > 0 {
-			return strings.TrimSpace(v[:i])
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		if ip := net.ParseIP(host); ip != nil && (ip.IsLoopback() || ip.IsPrivate()) {
+			if v := r.Header.Get("X-Forwarded-For"); v != "" {
+				if i := strings.Index(v, ","); i > 0 {
+					return strings.TrimSpace(v[:i])
+				}
+				return strings.TrimSpace(v)
+			}
 		}
-		return strings.TrimSpace(v)
 	}
 	host := r.RemoteAddr
 	if i := strings.LastIndex(host, ":"); i > 0 {

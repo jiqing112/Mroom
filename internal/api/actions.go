@@ -177,7 +177,7 @@ func (s *Server) setRating(w http.ResponseWriter, r *http.Request) {
 		util.WriteJSON(w, http.StatusBadRequest, map[string]any{"error": "参数错误"})
 		return
 	}
-	if err := s.Store.SetRating(u.ID, req.ID, req.Rating); err != nil {
+	if err := s.Store.SetRating(u.ID, req.ID, "song", req.Rating); err != nil {
 		util.WriteJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}
@@ -190,8 +190,8 @@ func (s *Server) scrobble(w http.ResponseWriter, r *http.Request) {
 	uid := ""
 	if u, err := s.readSession(r); err == nil {
 		uid = u.ID
-	} else if id, ok := s.ndCurrentUser(r); ok {
-		uid = id
+	} else if u, ok := s.ndCurrentUser(r); ok {
+		uid = u.ID
 	} else {
 		util.WriteJSON(w, http.StatusUnauthorized, map[string]any{"error": "请先登录"})
 		return

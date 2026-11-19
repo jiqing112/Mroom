@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -85,9 +86,13 @@ func (s *Scanner) Scan(ctx context.Context) (State, error) {
 }
 
 func (s *Scanner) run(ctx context.Context) (state State, err error) {
+	scanStart := time.Now().Unix()
 	// A partial directory walk must never feed DeleteMissing: an unreadable
 	// folder would otherwise be treated as "all of its files were deleted".
 	walkIncomplete := false
+	// The reconcile phase composes a precise summary (moves, dedup); the reset
+	// defer below must not clobber it with the plain completion message.
+	var finalMsg string
 	defer func() {
 		s.mu.Lock()
 		s.state.Running = false
@@ -98,6 +103,8 @@ func (s *Scanner) run(ctx context.Context) (state State, err error) {
 			s.state.Message = "扫描已中断"
 		case err != nil:
 			s.state.Message = "扫描失败: " + err.Error()
+		case finalMsg != "":
+			s.state.Message = finalMsg
 		case walkIncomplete:
 			s.state.Message = "扫描完成（部分目录不可读，已保留原有曲目）"
 		default:
@@ -116,6 +123,11 @@ func (s *Scanner) run(ctx context.Context) (state State, err error) {
 
 	type fileEntry struct{ abs, rel string }
 	var files []fileEntry
+	// Directories the walk deliberately skips (hidden folders, NAS recycle
+	// bins). Tracks under them must not be treated as deleted: a folder renamed
+	// to ".backup" or moved into "#recycle" would otherwise wipe every song row
+	// beneath it — together with stars, ratings and play counts.
+	var hiddenPrefixes []string
 	err = filepath.WalkDir(s.musicDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			walkIncomplete = true
@@ -125,6 +137,7 @@ func (s *Scanner) run(ctx context.Context) (state State, err error) {
 			name := d.Name()
 			if strings.HasPrefix(name, ".") || name == "@eaDir" || name == "#recycle" {
 				if path != s.musicDir {
+					hiddenPrefixes = append(hiddenPrefixes, filepath.ToSlash(path)+"/")
 					return filepath.SkipDir
 				}
 			}
@@ -150,7 +163,7 @@ func (s *Scanner) run(ctx context.Context) (state State, err error) {
 	s.state.Message = "正在解析元数据"
 	s.mu.Unlock()
 
-	seen := make(map[string]bool, len(files))
+	seenPaths := make(map[string]bool, len(files))
 	folderCovers := map[string]folderCoverResult{}
 	for i, f := range files {
 		select {
@@ -158,22 +171,17 @@ func (s *Scanner) run(ctx context.Context) (state State, err error) {
 			return s.Status(), ctx.Err()
 		default:
 		}
-		// The song ID is derived from the relative path, so the row must survive
-		// this scan even if reading the file fails transiently.
-		seen[store.SongID(f.rel)] = true
-		id, added, err := s.ingest(f.abs, f.rel, folderCovers, "")
+		seenPaths[filepath.ToSlash(f.abs)] = true
+		_, added, err := s.ingest(f.abs, f.rel, folderCovers, "")
 		s.mu.Lock()
 		s.state.Done = i + 1
 		s.state.Current = f.rel
 		if err != nil {
 			s.state.Failed++
+		} else if added {
+			s.state.Added++
 		} else {
-			seen[id] = true
-			if added {
-				s.state.Added++
-			} else {
-				s.state.Updated++
-			}
+			s.state.Updated++
 		}
 		s.mu.Unlock()
 	}
@@ -183,8 +191,26 @@ func (s *Scanner) run(ctx context.Context) (state State, err error) {
 	s.mu.Unlock()
 
 	removed := 0
+	moved := 0
 	if !walkIncomplete {
-		removed, _ = s.store.DeleteMissing(seen)
+		// Reconcile renames and folder moves first: a vanished file whose bytes
+		// reappeared at a new path is a move, and the fresh row must take over
+		// the old identity before DeleteMissing reaps the stale row and before
+		// the dedup pass trashes the fresh copy as a duplicate.
+		if m, cerr := s.store.CarryOverMoves(seenPaths, scanStart); cerr != nil {
+			log.Printf("移动识别失败: %v", cerr)
+		} else {
+			moved = m
+		}
+		removed, _ = s.store.DeleteMissing(seenPaths, func(p string) bool {
+			sp := filepath.ToSlash(p)
+			for _, pre := range hiddenPrefixes {
+				if strings.HasPrefix(sp, pre) {
+					return true
+				}
+			}
+			return false
+		})
 	}
 	deduped := s.dedupByContent()
 	if err := s.store.RefreshAlbumStats(); err != nil {
@@ -192,9 +218,24 @@ func (s *Scanner) run(ctx context.Context) (state State, err error) {
 	}
 
 	s.mu.Lock()
+	// A reconciled move was ingested as a new row and then merged into the old
+	// one: report it as an update of existing music, not as a net addition.
+	s.state.Added -= moved
+	s.state.Updated += moved
 	s.state.Removed = removed + deduped
-	if deduped > 0 {
-		s.state.Message = fmt.Sprintf("扫描完成，按内容去重清理 %d 首重复歌曲", deduped)
+	if moved > 0 || deduped > 0 || removed > 0 {
+		var b strings.Builder
+		b.WriteString("扫描完成")
+		if moved > 0 {
+			fmt.Fprintf(&b, "，%d 首歌曲移动后已保留收藏与播放记录", moved)
+		}
+		if removed > 0 {
+			fmt.Fprintf(&b, "，移除 %d 首已删除的歌曲", removed)
+		}
+		if deduped > 0 {
+			fmt.Fprintf(&b, "，按内容去重清理 %d 首重复歌曲", deduped)
+		}
+		finalMsg = b.String()
 	}
 	s.mu.Unlock()
 	return s.Status(), nil
@@ -207,13 +248,20 @@ func (s *Scanner) run(ctx context.Context) (state State, err error) {
 func (s *Scanner) dedupByContent() int {
 	groups, err := s.store.MD5Duplicates()
 	if err != nil {
+		log.Printf("去重扫描失败: %v", err)
 		return 0
 	}
 	n := 0
 	for _, g := range groups {
 		for _, id := range g.Extra {
 			if p, err := s.store.SongPath(id); err == nil && p != "" {
-				s.trashFile(p)
+				if terr := s.trashFile(p); terr != nil && !os.IsNotExist(terr) {
+					// The trash copy failed (full disk on the trash volume, for
+					// instance): keep both the file and the library row instead
+					// of destroying an original that cannot be restored.
+					log.Printf("移动 %s 到回收站失败，跳过去重: %v", p, terr)
+					continue
+				}
 			}
 			if err := s.store.DeleteSong(id); err == nil {
 				n++
@@ -224,27 +272,41 @@ func (s *Scanner) dedupByContent() int {
 }
 
 // trashFile moves a library file into the trash dir, mirroring the manual
-// delete flow so a bad dedup can be undone by hand.
-func (s *Scanner) trashFile(p string) {
+// delete flow so a bad dedup can be undone by hand. The original is only
+// removed once the trash copy is verifiably complete on disk.
+func (s *Scanner) trashFile(p string) error {
 	if s.trash == "" {
-		return
+		return errors.New("未配置回收站目录")
 	}
 	if err := os.MkdirAll(s.trash, 0o755); err != nil {
-		return
+		return err
 	}
 	target := util.UniquePath(filepath.Join(s.trash, filepath.Base(p)))
 	if err := os.Rename(p, target); err != nil {
 		// Cross-device fallback: copy then remove.
-		if in, ierr := os.Open(p); ierr == nil {
-			out, oerr := os.Create(target)
-			if oerr == nil {
-				_, _ = io.Copy(out, in)
-				out.Close()
-			}
+		in, ierr := os.Open(p)
+		if ierr != nil {
+			return ierr
+		}
+		out, oerr := os.Create(target)
+		if oerr != nil {
 			in.Close()
-			_ = os.Remove(p)
+			return oerr
+		}
+		_, cerr := io.Copy(out, in)
+		in.Close()
+		if cerr != nil {
+			out.Close()
+			return cerr
+		}
+		if serr := out.Close(); serr != nil {
+			return serr
+		}
+		if rerr := os.Remove(p); rerr != nil && !os.IsNotExist(rerr) {
+			return rerr
 		}
 	}
+	return nil
 }
 
 // ScanFileHashed ingests a single file whose content hash is already known

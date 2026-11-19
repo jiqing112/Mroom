@@ -65,6 +65,12 @@ func New(st *store.Store, prefix string) *Server {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Nothing in this API needs a large body; cap it so a single request
+	// cannot buffer unbounded data into memory (authenticate is reachable
+	// without credentials).
+	if r.Method == http.MethodPost {
+		r.Body = http.MaxBytesReader(w, r.Body, 4<<20)
+	}
 	path := r.URL.Path
 	if s.prefix != "" {
 		path = strings.TrimPrefix(path, s.prefix)
@@ -87,6 +93,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case path == "/Users/Me":
 		s.me(w, r)
 	case path == "/Users":
+		// User enumeration is an authenticated capability upstream; anonymous
+		// callers get nothing beyond the public system info.
+		if _, ok := s.tokenUser(r); !ok {
+			util.WriteJSON(w, 401, map[string]any{"error": "未登录"})
+			return
+		}
 		s.listUsers(w, r)
 	case strings.HasPrefix(path, "/Users/"):
 		// /Users/{id}/FavoriteItems/{itemId} and /Users/{id}/PlayedItems/{itemId}
@@ -155,12 +167,12 @@ func (s *Server) tokenUser(r *http.Request) (*store.User, bool) {
 	if tok == "" {
 		return nil, false
 	}
-	uid, ok := util.ParseJWT(tok, s.secret)
+	uid, ver, ok := util.ParseJWT(tok, s.secret)
 	if !ok {
 		return nil, false
 	}
 	u, err := s.Store.GetUserByID(uid)
-	if err != nil {
+	if err != nil || u.SessionVersion != ver {
 		return nil, false
 	}
 	return u, true
@@ -185,7 +197,7 @@ func (s *Server) authenticate(w http.ResponseWriter, r *http.Request) {
 		util.WriteJSON(w, 401, map[string]any{"error": "用户名或密码错误"})
 		return
 	}
-	token := util.SignJWT(s.secret, u.ID, 30*24*time.Hour)
+	token := util.SignJWT(s.secret, u.ID, u.SessionVersion, 30*24*time.Hour)
 	util.WriteJSON(w, 200, map[string]any{
 		"User":        s.userDto(u),
 		"SessionInfo": map[string]any{"Id": util.RandomHex(16), "UserId": u.ID, "UserName": u.Username},
@@ -244,7 +256,9 @@ func (s *Server) items(w http.ResponseWriter, r *http.Request) {
 	}
 	q := r.URL.Query()
 	userID := u.ID
-	if v := q.Get("userId"); v != "" {
+	// Reading another user's annotations is an admin capability, same as the
+	// upstream server; regular clients are pinned to their own account.
+	if v := q.Get("userId"); v != "" && u.IsAdmin {
 		userID = v
 	}
 	limit := atoi(q.Get("Limit"), 200)
@@ -267,13 +281,31 @@ func (s *Server) items(w http.ResponseWriter, r *http.Request) {
 	wantAlbums := strings.Contains(types, "musicalbum")
 	wantArtists := strings.Contains(types, "musicartist")
 
-	// A ParentId pointing at an album means "songs of that album".
+	// A ParentId pointing at an album means "songs of that album"; an artist id
+	// means "songs of that artist". Neither may fall through to the unfiltered
+	// library listing below.
 	if parent != "" && wantSongs {
 		if a, err := s.Store.GetAlbum(userID, parent, true); err == nil {
 			for _, song := range a.Songs {
 				items = append(items, s.songItem(song))
 			}
 			util.WriteJSON(w, 200, map[string]any{"Items": items, "TotalRecordCount": len(items), "StartIndex": 0})
+			return
+		}
+		if _, err := s.Store.GetArtist(userID, parent); err == nil {
+			f := store.SongFilter{ArtistID: parent, Limit: limit, Offset: start}
+			if favorites {
+				f.StarredOnly = true
+			}
+			songs, _ := s.Store.ListSongs(userID, f)
+			total, _ = s.Store.CountSongsFiltered(userID, f)
+			for _, song := range songs {
+				items = append(items, s.songItem(song))
+			}
+			if items == nil {
+				items = []any{}
+			}
+			util.WriteJSON(w, 200, map[string]any{"Items": items, "TotalRecordCount": total, "StartIndex": start})
 			return
 		}
 	}
@@ -283,11 +315,33 @@ func (s *Server) items(w http.ResponseWriter, r *http.Request) {
 		total = len(artists)
 		items = s.sliceArtists(artists, start, limit)
 	} else if wantAlbums && !wantSongs {
-		albums, _ := s.Store.ListAlbums(userID, store.AlbumFilter{Search: search, Limit: limit, Offset: start})
+		var albums []store.Album
 		if favorites {
 			albums, _ = s.Store.StarredAlbums(userID)
+			// StarredAlbums returns the whole list; honour the same search and
+			// paging contract the non-favorite path follows.
+			if search != "" {
+				lower := strings.ToLower(search)
+				var kept []store.Album
+				for _, a := range albums {
+					if strings.Contains(strings.ToLower(a.Name), lower) || strings.Contains(strings.ToLower(a.Artist), lower) {
+						kept = append(kept, a)
+					}
+				}
+				albums = kept
+			}
 			total = len(albums)
+			if start < len(albums) {
+				end := start + limit
+				if end > len(albums) {
+					end = len(albums)
+				}
+				albums = albums[start:end]
+			} else {
+				albums = nil
+			}
 		} else {
+			albums, _ = s.Store.ListAlbums(userID, store.AlbumFilter{Search: search, Limit: limit, Offset: start})
 			all, _ := s.Store.ListAlbums(userID, store.AlbumFilter{Search: search, Limit: 0})
 			total = len(all)
 		}
@@ -467,8 +521,13 @@ func (s *Server) played(w http.ResponseWriter, r *http.Request, id string) {
 		util.WriteJSON(w, 401, map[string]any{"error": "未登录"})
 		return
 	}
-	if r.Method == http.MethodPost {
+	switch r.Method {
+	case http.MethodPost, http.MethodPut:
 		_ = s.Store.Scrobble(u.ID, id, time.Now().Unix())
+	case http.MethodDelete:
+		// "Mark as unplayed": report the same success the clients expect, but
+		// actually clear the play record so the web UI stays in sync.
+		_ = s.Store.Unscrobble(u.ID, id)
 	}
 	util.WriteJSON(w, 200, map[string]any{})
 }
@@ -652,6 +711,12 @@ func (s *Server) infoPublic(w http.ResponseWriter) {
 }
 
 func (s *Server) info(w http.ResponseWriter, r *http.Request) {
+	// Only /System/Info/Public is anonymous upstream; the full info reveals
+	// version details to anyone and stays behind the token here too.
+	if _, ok := s.tokenUser(r); !ok {
+		util.WriteJSON(w, 401, map[string]any{"error": "未登录"})
+		return
+	}
 	util.WriteJSON(w, 200, map[string]any{
 		"ServerName":                 serverName,
 		"Version":                    serverVersion,

@@ -383,7 +383,7 @@
     z-index: 45;
     min-width: 190px;
     padding: 6px;
-    border-radius: 14px;
+    border-radius: var(--r-md);
     display: flex;
     flex-direction: column;
     gap: 1px;
@@ -425,7 +425,7 @@
     width: 100%;
     padding: 8px 9px;
     border: none;
-    border-radius: 8px;
+    border-radius: var(--r-sm);
     background: none;
     color: var(--text-2);
     font: inherit;

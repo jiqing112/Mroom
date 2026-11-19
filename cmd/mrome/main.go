@@ -34,6 +34,24 @@ func main() {
 	}
 	defer st.Close()
 	st.SetCoversDir(cfg.CoversDir)
+	// Song ids are derived from the case-preserved relative path; databases
+	// created by older builds hold lowercase ids and must be re-keyed once
+	// (stars, ratings, playlists move with them). Gated by a settings flag:
+	// rerunning it on every start would re-derive the ids that CarryOverMoves
+	// deliberately kept stable across renames. Reconciliation itself is
+	// path-based, so any id scheme works after this one-time migration.
+	if st.GetSetting("song_id_schema", "") != "2" {
+		n, err := st.RehashSongIDs(cfg.MusicDir)
+		if err != nil {
+			log.Fatalf("歌曲 ID 迁移失败: %v", err)
+		}
+		if n > 0 {
+			log.Printf("已按新规则迁移 %d 首歌曲的 ID", n)
+		}
+		if err := st.SetSetting("song_id_schema", "2"); err != nil {
+			log.Fatalf("写入迁移标记失败: %v", err)
+		}
+	}
 
 	// The settings panel can toggle guest mode at runtime; its choice is stored in
 	// the database and wins over the config file on the next start.

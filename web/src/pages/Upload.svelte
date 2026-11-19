@@ -1,4 +1,5 @@
 <script>
+  import { onDestroy } from 'svelte'
   import { UploadCloud, FileAudio, Check, X, RotateCw, FolderOpen, ShieldAlert, ArrowRight, Loader2 } from 'lucide-svelte'
   import { api } from '../lib/api.js'
   import { auth } from '../lib/auth.svelte.js'
@@ -23,6 +24,14 @@
   const finishedCount = $derived(doneCount + skippedCount)
   const busy = $derived(items.some((i) => i.status === 'uploading' || i.status === 'queued'))
 
+  onDestroy(() => {
+    // Leaving the page must actually stop the in-flight chunk fetches instead
+    // of letting them run invisibly in the background.
+    for (const i of items) {
+      if (i.status === 'uploading') i.ctrl?.abort()
+    }
+  })
+
   function humanSize(bytes) {
     if (bytes > 1024 * 1024 * 1024) return `${(bytes / 1024 ** 3).toFixed(1)} GB`
     if (bytes > 1024 * 1024) return `${(bytes / 1024 ** 2).toFixed(1)} MB`
@@ -43,7 +52,8 @@
         progress: 0,
         status: 'queued',
         error: '',
-        id: null
+        id: null,
+        ctrl: null
       })
       added++
     }
@@ -64,26 +74,52 @@
     }
   }
 
+  async function startSession(item) {
+    const init = await api.post('/api/upload/init', {
+      filename: item.name,
+      relativePath: item.rel,
+      size: item.size
+    })
+    item.id = init.id
+    return init.chunkSize
+  }
+
   async function upload(item) {
+    item.ctrl = new AbortController()
     try {
-      const init = await api.post('/api/upload/init', {
-        filename: item.name,
-        relativePath: item.rel,
-        size: item.size
-      })
-      item.id = init.id
+      let chunk = 4 << 20
       let sent = 0
+      if (item.id) {
+        // The upload session survived the failure: the server reports how much
+        // it already holds, so continue from there instead of re-sending it.
+        try {
+          const st = await api.get(`/api/upload/${item.id}`)
+          chunk = st.chunkSize || chunk
+          sent = Math.min(Math.max(0, st.received || 0), item.size)
+        } catch {
+          item.id = null // session gone (restart or cleanup): start a fresh one
+        }
+      }
+      if (!item.id) chunk = await startSession(item)
+      item.progress = item.size ? sent / item.size : 1
       while (sent < item.size) {
         if (item.status === 'canceled') return
-        const end = Math.min(sent + init.chunkSize, item.size)
+        const end = Math.min(sent + chunk, item.size)
         const res = await fetch(`/api/upload/${item.id}?offset=${sent}`, {
           method: 'PUT',
           body: item.file.slice(sent, end),
-          credentials: 'same-origin'
+          credentials: 'same-origin',
+          signal: item.ctrl.signal
         })
         if (res.status === 409) {
           const d = await res.json().catch(() => ({}))
           sent = d.received || 0
+          continue
+        }
+        if (res.status === 404) {
+          // The server no longer knows this session (it restarted mid-upload).
+          chunk = await startSession(item)
+          sent = 0
           continue
         }
         if (!res.ok) {
@@ -112,23 +148,24 @@
         }
       }
     } catch (e) {
+      if (e?.name === 'AbortError' || item.status === 'canceled') return
       item.status = 'error'
       item.error = e.message
       notify.err(`${item.name}: ${e.message}`)
     }
   }
 
+  // Retry keeps the upload session: the server still holds the already-sent
+  // bytes, so the next run resumes instead of restarting from zero.
   function retry(item) {
-    if (item.id) api.del(`/api/upload/${item.id}`).catch(() => {})
     item.status = 'queued'
-    item.progress = 0
     item.error = ''
-    item.id = null
     pump()
   }
 
   function cancel(item) {
     item.status = 'canceled'
+    item.ctrl?.abort()
     if (item.id) api.del(`/api/upload/${item.id}`).catch(() => {})
     items = items.filter((i) => i.key !== item.key)
   }
@@ -297,7 +334,7 @@
   .dropzone {
     position: relative;
     border: 1px dashed var(--line-strong);
-    border-radius: 28px;
+    border-radius: var(--r-xl);
     padding: 56px 24px 40px;
     display: flex;
     flex-direction: column;
@@ -395,7 +432,7 @@
     align-items: center;
     gap: 12px;
     padding: 10px 12px;
-    border-radius: 14px;
+    border-radius: var(--r-md);
     border: 1px solid var(--line);
     background: var(--glass);
   }
@@ -416,7 +453,7 @@
   .f-icon {
     width: 34px;
     height: 34px;
-    border-radius: 10px;
+    border-radius: var(--r-sm);
     display: grid;
     place-items: center;
     background: var(--glass-2);
@@ -484,7 +521,7 @@
   @media (max-width: 860px) {
     .dropzone {
       padding: 40px 18px 30px;
-      border-radius: 22px;
+      border-radius: var(--r-lg);
     }
     .drop-title {
       font-size: 16px;

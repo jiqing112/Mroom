@@ -239,7 +239,7 @@
     bottom: 16px;
     z-index: 45;
     height: 88px;
-    border-radius: 24px;
+    border-radius: var(--r-xl);
     background: var(--bar-bg);
     backdrop-filter: blur(36px) saturate(170%);
     display: grid;
@@ -261,7 +261,7 @@
     background: none;
     padding: 0;
     cursor: pointer;
-    border-radius: 12px;
+    border-radius: var(--r-md);
   }
   .cover-btn :global(.thumb) {
     width: 52px;
@@ -379,7 +379,7 @@
       bottom: 8px;
       height: 84px;
       padding: 8px 12px;
-      border-radius: 20px;
+      border-radius: var(--r-lg);
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -396,7 +396,7 @@
     .cover-btn :global(.thumb) {
       width: 40px;
       height: 40px;
-      border-radius: 9px;
+      border-radius: var(--r-sm);
     }
     .center,
     .right,

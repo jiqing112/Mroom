@@ -62,6 +62,19 @@ func TestProbeAAC(t *testing.T) {
 	}
 }
 
+func TestProbeMP3TruncatedVBRI(t *testing.T) {
+	// A header that looks valid (MPEG1 Layer III, 128 kbps, 44.1 kHz) followed
+	// by just enough filler to place a "VBRI" tag — the buffer ends before the
+	// frame-count field. This used to panic with a slice-bounds read.
+	data := make([]byte, 41)
+	data[0], data[1], data[2], data[3] = 0xFF, 0xFB, 0x90, 0x00
+	copy(data[36:40], "VBRI")
+	info := Probe(writeTemp(t, "cut.mp3", data))
+	if info.Bitrate != 128 || info.SampleRate != 44100 {
+		t.Fatalf("unexpected info: %+v", info)
+	}
+}
+
 func TestProbeWMA(t *testing.T) {
 	guid := []byte{0x30, 0x26, 0xB2, 0x75, 0x8E, 0x66, 0xCF, 0x11, 0xA6, 0xD9, 0x00, 0xAA, 0x00, 0x62, 0xCE, 0x6C}
 	propsGUID := []byte{0xA1, 0xDC, 0xAB, 0x8C, 0x47, 0xA9, 0xCF, 0x11, 0x8E, 0xE4, 0x00, 0xC0, 0x0C, 0x20, 0x53, 0x65}

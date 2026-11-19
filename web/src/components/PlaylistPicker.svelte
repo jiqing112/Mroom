@@ -164,7 +164,7 @@
   .panel {
     width: min(460px, 100%);
     max-height: min(74vh, 640px);
-    border-radius: 24px;
+    border-radius: var(--r-xl);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -213,7 +213,7 @@
     width: 100%;
     padding: 10px 12px;
     border: 1px solid transparent;
-    border-radius: 12px;
+    border-radius: var(--r-md);
     background: none;
     color: var(--text);
     text-align: left;
@@ -258,7 +258,7 @@
     min-width: 0;
     height: 38px;
     padding: 0 12px;
-    border-radius: 10px;
+    border-radius: var(--r-sm);
     border: 1px solid var(--line);
     background: var(--bg);
     color: var(--text);

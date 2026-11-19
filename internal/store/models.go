@@ -119,6 +119,8 @@ type SongFilter struct {
 	Search      string
 	AlbumID     string
 	ArtistID    string
+	Album       string // exact album name match, case-insensitive
+	Artist      string // exact artist name match, case-insensitive
 	Genre       string
 	StarredOnly bool
 	Sort        string

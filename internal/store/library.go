@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -15,8 +16,12 @@ func AlbumID(albumArtist, album string) string {
 	return hashID("album", strings.ToLower(strings.TrimSpace(albumArtist)), strings.ToLower(strings.TrimSpace(album)))
 }
 
+// SongID derives the stable id of a library file from its relative path. The
+// path is used verbatim: lowercasing it collapses two files that only differ
+// in case on case-sensitive filesystems into a single row, making one of them
+// unreachable. RehashSongIDs migrates databases created by the old rule.
 func SongID(relPath string) string {
-	return hashID("song", strings.ToLower(filepath.ToSlash(relPath)))
+	return hashID("song", filepath.ToSlash(relPath))
 }
 
 func (s *Store) SetCoversDir(dir string) { s.dir = dir }
@@ -61,6 +66,14 @@ func (s *Store) ListSongs(userID string, f SongFilter) ([]Song, error) {
 	if f.ArtistID != "" {
 		where = append(where, `(s.artist_id = ? OR s.album_id IN (SELECT id FROM albums WHERE artist_id = ?))`)
 		args = append(args, f.ArtistID, f.ArtistID)
+	}
+	if f.Album != "" {
+		where = append(where, `s.album = ? COLLATE NOCASE`)
+		args = append(args, f.Album)
+	}
+	if f.Artist != "" {
+		where = append(where, `s.artist = ? COLLATE NOCASE`)
+		args = append(args, f.Artist)
 	}
 	if f.Genre != "" {
 		where = append(where, `s.genre = ?`)
@@ -120,6 +133,14 @@ func (s *Store) CountSongsFiltered(userID string, f SongFilter) (int, error) {
 	if f.ArtistID != "" {
 		where = append(where, `(s.artist_id = ? OR s.album_id IN (SELECT id FROM albums WHERE artist_id = ?))`)
 		args = append(args, f.ArtistID, f.ArtistID)
+	}
+	if f.Album != "" {
+		where = append(where, `s.album = ? COLLATE NOCASE`)
+		args = append(args, f.Album)
+	}
+	if f.Artist != "" {
+		where = append(where, `s.artist = ? COLLATE NOCASE`)
+		args = append(args, f.Artist)
 	}
 	if f.Genre != "" {
 		where = append(where, `s.genre = ?`)
@@ -491,15 +512,21 @@ func (s *Store) SetStar(userID, itemID, itemType string, star bool) error {
 	return err
 }
 
-func (s *Store) SetRating(userID, itemID string, rating int) error {
+// SetRating stores a 0-5 rating. itemType is "song", "album" or "artist" —
+// the Subsonic setRating endpoint accepts bare ids of all three kinds, and a
+// rating recorded under the wrong type can never be read back.
+func (s *Store) SetRating(userID, itemID, itemType string, rating int) error {
+	if itemType != "album" && itemType != "artist" {
+		itemType = "song"
+	}
 	if rating < 0 {
 		rating = 0
 	}
 	if rating > 5 {
 		rating = 5
 	}
-	_, err := s.db.Exec(`INSERT INTO annotations(user_id,item_id,item_type,rating) VALUES(?,?,'song',?)
-		ON CONFLICT(user_id,item_id) DO UPDATE SET rating=excluded.rating`, userID, itemID, rating)
+	_, err := s.db.Exec(`INSERT INTO annotations(user_id,item_id,item_type,rating) VALUES(?,?,?,?)
+		ON CONFLICT(user_id,item_id) DO UPDATE SET rating=excluded.rating`, userID, itemID, itemType, rating)
 	return err
 }
 
@@ -610,7 +637,31 @@ func (s *Store) UpsertTrack(t TrackInput) (string, error) {
 
 	aid := ArtistID(artistName)
 	alid := AlbumID(albumArtist, albumName)
+	// Identity is keyed by path, but a row that survived a rename or move keeps
+	// the id it was first imported under (see CarryOverMoves): resolve by the
+	// on-disk path first so rescans update that row in place instead of
+	// spawning a duplicate keyed by the new path.
 	sid := SongID(t.RelPath)
+	var byPath string
+	if err := s.db.QueryRow(`SELECT id FROM songs WHERE path=?`, filepath.ToSlash(t.AbsPath)).Scan(&byPath); err == nil && byPath != "" {
+		sid = byPath
+	} else {
+		// The path is new: make sure the derived id is not already taken by a
+		// different row. Legacy databases keyed ids by the lowercased path, so
+		// two files differing only in case would otherwise silently overwrite
+		// each other; disambiguate with a numeric suffix instead.
+		for i := 1; ; i++ {
+			var other string
+			err := s.db.QueryRow(`SELECT path FROM songs WHERE id=?`, sid).Scan(&other)
+			if err != nil {
+				break // id unused
+			}
+			if filepath.ToSlash(other) == filepath.ToSlash(t.AbsPath) {
+				break // same row: unreachable given the path lookup above
+			}
+			sid = hashID("song", filepath.ToSlash(t.RelPath), strconv.Itoa(i))
+		}
+	}
 	ts := now()
 
 	// A manual metadata edit should survive rescans. Keep the edited fields as
@@ -693,8 +744,13 @@ func coverExt(mime string) string {
 	}
 }
 
-// DeleteMissing removes songs whose files no longer exist on disk.
-func (s *Store) DeleteMissing(seen map[string]bool) (int, error) {
+// DeleteMissing removes songs whose files no longer exist on disk: a row is
+// stale when no walked file sits at its stored path. Matching by path (rather
+// than by derived id) is what lets CarryOverMoves preserve a row's original id
+// across a rename. keepPath receives each row's stored path and may veto
+// deletion — the scanner uses it to protect tracks under directories the walk
+// intentionally skipped.
+func (s *Store) DeleteMissing(seenPaths map[string]bool, keepPath func(string) bool) (int, error) {
 	rows, err := s.db.Query(`SELECT id, path FROM songs`)
 	if err != nil {
 		return 0, err
@@ -706,7 +762,7 @@ func (s *Store) DeleteMissing(seen map[string]bool) (int, error) {
 			rows.Close()
 			return 0, err
 		}
-		if !seen[id] {
+		if !seenPaths[filepath.ToSlash(p)] && (keepPath == nil || !keepPath(p)) {
 			stale = append(stale, id)
 		}
 	}
@@ -722,6 +778,159 @@ func (s *Store) DeleteMissing(seen map[string]bool) (int, error) {
 		}
 	}
 	return len(stale), nil
+}
+
+// CarryOverMoves re-unites a vanished row with the freshly scanned row holding
+// the same bytes: a rename or a folder move shows up in a scan as "one file
+// gone + one file added". The fresh row carries the new path and fresh tags,
+// the vanished row carries the identity — its id, and with it every star,
+// rating, play count and playlist entry. The two are merged by giving the
+// fresh row the vanished row's id and dropping the stale shell, so clients see
+// the same item they always did. Only unambiguous one-to-one matches are
+// reconciled; anything else is left to the content dedup pass. Must run before
+// DeleteMissing (which would reap the stale shell) and before dedup (which
+// would trash the fresh copy as a duplicate).
+func (s *Store) CarryOverMoves(seenPaths map[string]bool, scanStart int64) (int, error) {
+	rows, err := s.db.Query(`SELECT id, path, md5, created_at, meta_edited FROM songs`)
+	if err != nil {
+		return 0, err
+	}
+	type track struct {
+		id, path, md5 string
+		created       int64
+		metaEdited    int64
+	}
+	var stale, fresh []track
+	for rows.Next() {
+		var t track
+		if err := rows.Scan(&t.id, &t.path, &t.md5, &t.created, &t.metaEdited); err != nil {
+			rows.Close()
+			return 0, err
+		}
+		if t.md5 == "" {
+			continue // never hashed: nothing to match on
+		}
+		if seenPaths[filepath.ToSlash(t.path)] {
+			if t.created >= scanStart {
+				fresh = append(fresh, t)
+			}
+		} else {
+			stale = append(stale, t)
+		}
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+
+	byMD5 := map[string][]track{}
+	for _, f := range fresh {
+		byMD5[f.md5] = append(byMD5[f.md5], f)
+	}
+	claimed := map[string]bool{}
+	n := 0
+	for _, o := range stale {
+		cands := byMD5[o.md5]
+		if len(cands) != 1 || claimed[cands[0].id] {
+			continue
+		}
+		f := cands[0]
+		claimed[f.id] = true
+		// The swap keeps the annotations and playlist entries keyed to o.id
+		// pointing at live data: the fresh row takes over the old id, the stale
+		// shell is renamed out of the way and removed. Row ids are 32-char hex,
+		// so the suffixed temp id cannot collide with anything.
+		tmp := o.id + "~moved"
+		if _, err := s.db.Exec(`UPDATE songs SET id=? WHERE id=?`, tmp, o.id); err != nil {
+			return n, err
+		}
+		if _, err := s.db.Exec(`UPDATE songs SET id=? WHERE id=?`, o.id, f.id); err != nil {
+			return n, err
+		}
+		if _, err := s.db.Exec(`DELETE FROM songs WHERE id=?`, tmp); err != nil {
+			return n, err
+		}
+		// The merged row keeps the original import date and any manual metadata
+		// edit; a move must not make the album look freshly added or drop edits.
+		if _, err := s.db.Exec(`UPDATE songs SET created_at=?, meta_edited=? WHERE id=?`, o.created, o.metaEdited, o.id); err != nil {
+			return n, err
+		}
+		// Anything a client managed to attach to the fresh id during the scan
+		// window is orphaned now; annotations for unknown items are also swept
+		// by PruneEmpty, this just keeps it tidy immediately.
+		if _, err := s.db.Exec(`DELETE FROM annotations WHERE item_id=? AND item_type='song'`, f.id); err != nil {
+			return n, err
+		}
+		n++
+	}
+	return n, nil
+}
+
+// RehashSongIDs re-derives every song id from its case-preserved relative
+// path. Databases created before SongID stopped lowercasing paths hold
+// lowercase ids; annotations and playlist entries are keyed by the song id and
+// must move with it, or stars, ratings and play counts would be orphaned.
+// Rows whose file is currently missing are skipped: they are either about to
+// be reaped, or a move that CarryOverMoves will reconcile under the original
+// id — re-deriving now would defeat that. Rows whose path cannot be related to
+// musicDir are left untouched as well.
+func (s *Store) RehashSongIDs(musicDir string) (int, error) {
+	base := filepath.ToSlash(musicDir)
+	rows, err := s.db.Query(`SELECT id, path FROM songs`)
+	if err != nil {
+		return 0, err
+	}
+	type move struct{ from, to string }
+	var moves []move
+	targets := map[string]string{}
+	for rows.Next() {
+		var id, p string
+		if err := rows.Scan(&id, &p); err != nil {
+			rows.Close()
+			return 0, err
+		}
+		p = filepath.ToSlash(p)
+		if _, err := os.Stat(filepath.FromSlash(p)); err != nil {
+			continue // file gone: pending delete or pending move reconciliation
+		}
+		rel := p
+		if base != "" && strings.HasPrefix(p, base+"/") {
+			rel = p[len(base)+1:]
+		} else if r, rerr := filepath.Rel(filepath.FromSlash(base), filepath.FromSlash(p)); rerr == nil && !strings.HasPrefix(r, "..") {
+			rel = filepath.ToSlash(r)
+		}
+		newID := SongID(rel)
+		if newID == id {
+			targets[newID] = id
+			continue
+		}
+		if prev, taken := targets[newID]; taken && prev != id {
+			// Two rows derived the same id: never merge them; the library would
+			// lose a file. Abort the migration so the old ids stay untouched.
+			rows.Close()
+			return 0, fmt.Errorf("song id 迁移冲突: %s 与 %s 都映射到 %s", prev, id, newID)
+		}
+		targets[newID] = id
+		moves = append(moves, move{from: id, to: newID})
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, m := range moves {
+		if _, err := s.db.Exec(`UPDATE songs SET id=? WHERE id=?`, m.to, m.from); err != nil {
+			return n, err
+		}
+		if _, err := s.db.Exec(`UPDATE playlist_songs SET song_id=? WHERE song_id=?`, m.to, m.from); err != nil {
+			return n, err
+		}
+		if _, err := s.db.Exec(`UPDATE annotations SET item_id=? WHERE item_id=? AND item_type='song'`, m.to, m.from); err != nil {
+			return n, err
+		}
+		n++
+	}
+	return n, nil
 }
 
 func (s *Store) PathExists(path string) bool {
@@ -827,5 +1036,14 @@ func (s *Store) TouchNowPlaying(userID, songID string, at int64) error {
 	_, err := s.db.Exec(`INSERT INTO annotations(user_id,item_id,item_type,play_count,play_date)
 		VALUES(?,?,'song',0,?)
 		ON CONFLICT(user_id,item_id) DO UPDATE SET play_date=excluded.play_date`, userID, songID, at)
+	return err
+}
+
+// Unscrobble clears a song's play record ("mark as unplayed" in clients). The
+// album-level roll-up is left alone: it aggregates several tracks and cannot
+// be attributed back to one of them.
+func (s *Store) Unscrobble(userID, songID string) error {
+	_, err := s.db.Exec(`UPDATE annotations SET play_count=0, play_date=0
+		WHERE user_id=? AND item_id=? AND item_type='song'`, userID, songID)
 	return err
 }
